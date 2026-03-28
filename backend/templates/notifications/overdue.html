@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Overdue loan: {{ book_title }}</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f4f4f5; font-family: Arial, sans-serif; color: #18181b; }
+    .wrapper { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .header { background-color: #dc2626; padding: 32px 40px; }
+    .header h1 { margin: 0; color: #ffffff; font-size: 22px; font-weight: 700; }
+    .body { padding: 32px 40px; }
+    .body p { margin: 0 0 16px; line-height: 1.6; font-size: 15px; color: #3f3f46; }
+    .alert-box { background: #fef2f2; border-left: 4px solid #dc2626; padding: 16px 20px; border-radius: 4px; margin: 24px 0; }
+    .alert-box p { margin: 4px 0; font-size: 14px; color: #991b1b; }
+    .alert-box .label { font-weight: 600; }
+    .btn { display: inline-block; background-color: #dc2626; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 15px; font-weight: 600; margin-top: 8px; }
+    .steps { background: #f9fafb; border-radius: 6px; padding: 20px 24px; margin: 24px 0; }
+    .steps h3 { margin: 0 0 12px; font-size: 15px; color: #18181b; }
+    .steps ol { margin: 0; padding-left: 20px; }
+    .steps li { margin-bottom: 8px; font-size: 14px; color: #3f3f46; line-height: 1.5; }
+    .footer { padding: 20px 40px; border-top: 1px solid #e4e4e7; }
+    .footer p { margin: 0; font-size: 13px; color: #a1a1aa; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>⚠️ Internet Library — Overdue Loan</h1>
+    </div>
+    <div class="body">
+      <p>Hi {{ user_name }},</p>
+      <p>Your loan is <strong>overdue</strong>. Please return the book as soon as possible to avoid further penalties.</p>
+
+      <div class="alert-box">
+        <p><span class="label">Book:</span> {{ book_title }}</p>
+        <p><span class="label">Was due:</span> {{ due_date }}</p>
+        <p><span class="label">Days overdue:</span> {{ days_overdue }}</p>
+        <p><span class="label">Current penalty:</span> €{{ penalty_amount|default:"0.50 per day" }}</p>
+      </div>
+
+      <div class="steps">
+        <h3>How to return the book</h3>
+        <ol>
+          <li>Visit the library in person with the book and your membership card.</li>
+          <li>Or mark it as returned online via the dashboard if staff have processed it.</li>
+          <li>Pay any outstanding penalties at the front desk or through the app.</li>
+        </ol>
+      </div>
+
+      <a href="{{ dashboard_url }}" class="btn">Go to My Loans</a>
+
+      <p style="margin-top: 24px; font-size: 13px; color: #71717a;">
+        Accounts with penalties over €10.00 may be temporarily suspended. If you believe this is an error, please contact library staff.
+      </p>
+    </div>
+    <div class="footer">
+      <p>Internet Library &bull; Questions? Reply to this email or visit us in person.</p>
+    </div>
+  </div>
+</body>
+</html>

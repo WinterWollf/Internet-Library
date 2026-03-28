@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your reserved book is available: {{ book_title }}</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f4f4f5; font-family: Arial, sans-serif; color: #18181b; }
+    .wrapper { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .header { background-color: #16a34a; padding: 32px 40px; }
+    .header h1 { margin: 0; color: #ffffff; font-size: 22px; font-weight: 700; }
+    .body { padding: 32px 40px; }
+    .body p { margin: 0 0 16px; line-height: 1.6; font-size: 15px; color: #3f3f46; }
+    .info-box { background: #f0fdf4; border-left: 4px solid #16a34a; padding: 16px 20px; border-radius: 4px; margin: 24px 0; }
+    .info-box p { margin: 4px 0; font-size: 14px; color: #166534; }
+    .info-box .label { font-weight: 600; }
+    .btn { display: inline-block; background-color: #2563eb; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 15px; font-weight: 600; margin-top: 8px; }
+    .btn-green { display: inline-block; background-color: #16a34a; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 15px; font-weight: 600; margin-top: 8px; }
+    .footer { padding: 20px 40px; border-top: 1px solid #e4e4e7; }
+    .footer p { margin: 0; font-size: 13px; color: #a1a1aa; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>✅ Internet Library — Book Available!</h1>
+    </div>
+    <div class="body">
+      <p>Hi {{ user_name }},</p>
+      <p>Great news! A copy of a book you reserved is now available for borrowing.</p>
+
+      <div class="info-box">
+        <p><span class="label">Book:</span> {{ book_title }}</p>
+        <p><span class="label">Author:</span> {{ book_author|default:"—" }}</p>
+        <p><span class="label">Reservation expires:</span> {{ reservation_expires }}</p>
+      </div>
+
+      <p>Act quickly — your reservation will expire on <strong>{{ reservation_expires }}</strong>. After that the copy will become available to other readers.</p>
+
+      <a href="{{ book_url }}" class="btn">View Book</a>
+      <a href="{{ borrow_url }}" class="btn-green" style="margin-left: 12px;">Borrow Now</a>
+    </div>
+    <div class="footer">
+      <p>Internet Library &bull; You received this because you reserved this book. <a href="{{ unsubscribe_url|default:'#' }}" style="color:#2563eb;">Manage notifications</a></p>
+    </div>
+  </div>
+</body>
+</html>

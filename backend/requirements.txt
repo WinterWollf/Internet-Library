@@ -6,7 +6,7 @@ django-allauth==65.9.0
 django-otp==1.5.4
 django-filter==25.1
 django-cors-headers==4.7.0
-django-celery-beat==2.7.0
+django-celery-beat==2.8.0
 drf-spectacular==0.28.0
 
 # Database
@@ -16,8 +16,12 @@ psycopg2==2.9.10
 celery==5.6.3
 redis==5.2.1
 
+# WSGI server
+gunicorn==23.0.0
+
 # Utilities
 python-decouple==3.8
+requests==2.32.3
 Pillow==11.2.1
 qrcode==8.1
 

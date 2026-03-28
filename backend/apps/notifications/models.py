@@ -23,9 +23,16 @@ class Notification(models.Model):
     )
     sent_at = models.DateTimeField(auto_now_add=True)
     channel = models.CharField(max_length=10, choices=Channel.choices, default=Channel.EMAIL)
+    is_sent = models.BooleanField(default=False)
+    error_message = models.TextField(blank=True)
 
     class Meta:
         ordering = ["-sent_at"]
+        indexes = [
+            models.Index(fields=["user", "type"]),
+            models.Index(fields=["sent_at"]),
+        ]
 
     def __str__(self):
-        return f"{self.type} → {self.user} via {self.channel}"
+        status = "sent" if self.is_sent else "failed"
+        return f"{self.type} → {self.user} via {self.channel} [{status}]"

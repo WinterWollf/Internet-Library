@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reminder: Your loan is due soon</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f4f4f5; font-family: Arial, sans-serif; color: #18181b; }
+    .wrapper { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .header { background-color: #2563eb; padding: 32px 40px; }
+    .header h1 { margin: 0; color: #ffffff; font-size: 22px; font-weight: 700; }
+    .body { padding: 32px 40px; }
+    .body p { margin: 0 0 16px; line-height: 1.6; font-size: 15px; color: #3f3f46; }
+    .info-box { background: #eff6ff; border-left: 4px solid #2563eb; padding: 16px 20px; border-radius: 4px; margin: 24px 0; }
+    .info-box p { margin: 4px 0; font-size: 14px; color: #1e40af; }
+    .info-box .label { font-weight: 600; }
+    .btn { display: inline-block; background-color: #2563eb; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 15px; font-weight: 600; margin-top: 8px; }
+    .btn-outline { display: inline-block; border: 2px solid #2563eb; color: #2563eb !important; text-decoration: none; padding: 10px 26px; border-radius: 6px; font-size: 15px; font-weight: 600; margin-top: 8px; margin-left: 12px; }
+    .footer { padding: 20px 40px; border-top: 1px solid #e4e4e7; }
+    .footer p { margin: 0; font-size: 13px; color: #a1a1aa; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>📚 Internet Library — Loan Reminder</h1>
+    </div>
+    <div class="body">
+      <p>Hi {{ user_name }},</p>
+      <p>This is a friendly reminder that your borrowed book is due in <strong>{{ days }} day{{ days|pluralize }}</strong>. Please return or extend it on time to avoid a late fee.</p>
+
+      <div class="info-box">
+        <p><span class="label">Book:</span> {{ book_title }}</p>
+        <p><span class="label">Author:</span> {{ book_author|default:"—" }}</p>
+        <p><span class="label">Due date:</span> {{ due_date }}</p>
+      </div>
+
+      <a href="{{ dashboard_url }}" class="btn">Go to My Loans</a>
+      <a href="{{ extend_url }}" class="btn-outline">Extend Loan</a>
+
+      <p style="margin-top: 24px; font-size: 13px; color: #71717a;">
+        You can extend your loan up to 2 times if it is not overdue. After the due date a fee of €0.50 per day applies.
+      </p>
+    </div>
+    <div class="footer">
+      <p>Internet Library &bull; You received this because you have an active loan. <a href="{{ unsubscribe_url|default:'#' }}" style="color:#2563eb;">Manage notifications</a></p>
+    </div>
+  </div>
+</body>
+</html>

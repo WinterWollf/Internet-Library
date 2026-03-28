@@ -1,18 +1,25 @@
-import Link from "next/link";
+// [v0 import] Component: HomePage
+// Location: frontend/app/page.tsx
+// Connect to: N/A — assembles section components, each connects to its own endpoint
+// Mock data: none (delegated to section components)
+// Auth: public
+// TODO: none — shell only
+import Navbar from "@/components/navbar";
+import Hero from "@/components/hero";
+import FeaturedBooks from "@/components/books/featured-books";
+import HowItWorks from "@/components/how-it-works";
+import Footer from "@/components/footer";
 
-export default function HomePage() {
+export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <h1 className="text-4xl font-bold">Internet Library</h1>
-      <p className="mt-4 text-gray-600">Your online book catalog and loan management system.</p>
-      <div className="mt-8 flex gap-4">
-        <Link href="/catalog" className="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-          Browse Catalog
-        </Link>
-        <Link href="/login" className="rounded-md border px-4 py-2 hover:bg-gray-50">
-          Sign In
-        </Link>
-      </div>
-    </main>
+    <div className="min-h-screen bg-background font-sans flex flex-col">
+      <Navbar />
+      <main className="flex-1">
+        <Hero />
+        <FeaturedBooks />
+        <HowItWorks />
+      </main>
+      <Footer />
+    </div>
   );
 }

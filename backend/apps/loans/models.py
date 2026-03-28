@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 
 from apps.catalog.models import Book, BookCopy
 
@@ -20,6 +21,10 @@ class Loan(models.Model):
 
     class Meta:
         ordering = ["-borrowed_at"]
+        indexes = [
+            models.Index(fields=["reader", "status"]),
+            models.Index(fields=["copy", "status"]),
+        ]
 
     def __str__(self):
         return f"{self.reader} — {self.copy} ({self.status})"
@@ -42,9 +47,10 @@ class Penalty(models.Model):
         blank=True,
         related_name="waived_penalties",
     )
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-loan__borrowed_at"]
+        ordering = ["-created_at"]
         verbose_name_plural = "penalties"
 
     def __str__(self):
@@ -65,6 +71,13 @@ class Reservation(models.Model):
 
     class Meta:
         ordering = ["-reserved_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["book", "reader"],
+                condition=Q(status="pending"),
+                name="unique_pending_reservation",
+            )
+        ]
 
     def __str__(self):
         return f"{self.reader} reserved {self.book} ({self.status})"
