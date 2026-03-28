@@ -1,0 +1,32 @@
+# Django core
+Django==5.2
+djangorestframework==3.16.0
+djangorestframework-simplejwt==5.5.0
+django-allauth==65.9.0
+django-otp==1.5.4
+django-filter==25.1
+django-cors-headers==4.7.0
+django-celery-beat==2.7.0
+drf-spectacular==0.28.0
+
+# Database
+psycopg2==2.9.10
+
+# Task queue
+celery==5.6.3
+redis==5.2.1
+
+# Utilities
+python-decouple==3.8
+Pillow==11.2.1
+qrcode==8.1
+
+# Formatting / linting
+black==25.1.0
+isort==6.0.1
+ruff==0.11.2
+
+# Testing
+pytest==8.3.5
+pytest-django==4.10.0
+pytest-cov==6.1.0

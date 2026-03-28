@@ -1,7 +1,5 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.js
 
@@ -34,3 +32,38 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# CLAUDE
+.claude
+CLAUDE.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+
+# Django
+*.sqlite3
+/backend/static/
+/backend/media/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Docker
+.docker/
+
+# v0 temp (keep directory, ignore contents)
+v0_temp/*
+!v0_temp/.gitkeep

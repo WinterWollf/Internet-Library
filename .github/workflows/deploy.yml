@@ -1,0 +1,22 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    needs: []  # add ci job dependency when ready
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and push Docker images
+        run: |
+          echo "TODO: configure Docker registry and push images"
+
+      - name: Deploy via SSH
+        run: |
+          echo "TODO: configure SSH deployment or Kubernetes rollout"
