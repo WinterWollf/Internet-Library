@@ -1,7 +1,7 @@
 # Django core
 Django==5.2
 djangorestframework==3.16.0
-djangorestframework-simplejwt==5.5.0
+djangorestframework-simplejwt==5.5.1
 django-allauth==65.9.0
 django-otp==1.5.4
 django-filter==25.1
