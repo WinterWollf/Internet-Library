@@ -6,8 +6,8 @@ from django.db import models
 
 
 class Book(models.Model):
-    ol_id = models.CharField(max_length=50, unique=True, blank=True)
-    isbn = models.CharField(max_length=20, unique=True, blank=True)
+    ol_id = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    isbn = models.CharField(max_length=20, unique=True, blank=True, null=True)
     title = models.CharField(max_length=500)
     author = models.CharField(max_length=500)
     description = models.TextField(blank=True)

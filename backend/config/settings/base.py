@@ -125,6 +125,14 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": True,
 }
 
+# Cache (Redis db/1 — db/0 reserved for Celery broker)
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": config("REDIS_URL", default="redis://redis:6379/1"),
+    }
+}
+
 # Celery
 CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://redis:6379/0")
 CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default="redis://redis:6379/0")
@@ -152,4 +160,29 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "Internet Library API",
     "DESCRIPTION": "REST API for the Internet Library application",
     "VERSION": "1.0.0",
+    "TAGS": [
+        {"name": "Auth", "description": "Registration, login, logout, JWT token refresh and MFA (TOTP) management."},
+        {"name": "Catalog", "description": "Public book catalog browsing and full-text search."},
+        {"name": "Loans", "description": "Borrow books, return them and extend due dates."},
+        {"name": "Penalties", "description": "View and pay late-return or damage penalties."},
+        {"name": "Reservations", "description": "Reserve books and manage pending reservations."},
+        {"name": "Notifications", "description": "Reader notification history."},
+        {"name": "Stats", "description": "Personal reading statistics for the authenticated reader."},
+        {"name": "Open Library", "description": "Search and import book metadata from the Open Library API (admin only)."},
+        {"name": "Users (Admin)", "description": "Admin user listing, detail view, and block/unblock actions."},
+        {"name": "Catalog (Admin)", "description": "Admin management of books and physical copies."},
+        {"name": "Loans (Admin)", "description": "Admin oversight of all loans and penalty waiving."},
+        {"name": "Notifications (Admin)", "description": "Admin notification log and delivery statistics."},
+        {"name": "Stats (Admin)", "description": "Library-wide statistics, charts and operational reports."},
+    ],
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SORT_OPERATIONS": False,
 }
+
+# CORS
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = False

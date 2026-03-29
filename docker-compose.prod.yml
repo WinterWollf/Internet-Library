@@ -1,22 +1,26 @@
 services:
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.prod
+    image: ${FRONTEND_IMAGE:-ghcr.io/your-org/internet-library/frontend:latest}
     restart: always
+    ports:
+      - "3000:3000"
     environment:
-      - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=${API_URL}
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:8000}
     depends_on:
       - backend
+    networks:
+      - internal
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ${BACKEND_IMAGE:-ghcr.io/your-org/internet-library/backend:latest}
     restart: always
+    ports:
+      - "8000:8000"
     env_file:
       - .env.prod
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
     volumes:
       - media_files:/app/media
       - static_files:/app/static
@@ -24,6 +28,8 @@ services:
       - postgres
       - redis
     command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4
+    networks:
+      - internal
 
   postgres:
     image: postgres:17
@@ -34,52 +40,50 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
 
   redis:
     image: redis:7-alpine
     restart: always
+    networks:
+      - internal
 
   celery:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ${BACKEND_IMAGE:-ghcr.io/your-org/internet-library/backend:latest}
     restart: always
     env_file:
       - .env.prod
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
     volumes:
       - media_files:/app/media
     depends_on:
       - postgres
       - redis
     command: celery -A config worker --loglevel=info --concurrency 4
+    networks:
+      - internal
 
   celery-beat:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ${BACKEND_IMAGE:-ghcr.io/your-org/internet-library/backend:latest}
     restart: always
     env_file:
       - .env.prod
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
     depends_on:
       - postgres
       - redis
     command: celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
-
-  nginx:
-    image: nginx:alpine
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - static_files:/app/static:ro
-      - media_files:/app/media:ro
-    depends_on:
-      - frontend
-      - backend
+    networks:
+      - internal
 
 volumes:
   postgres_data:
   media_files:
   static_files:
+
+networks:
+  internal:
+    driver: bridge

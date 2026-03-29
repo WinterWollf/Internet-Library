@@ -1,3 +1,5 @@
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema, extend_schema_view
+from drf_spectacular.types import OpenApiTypes
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.pagination import PageNumberPagination
@@ -21,9 +23,19 @@ from apps.catalog.services import (
 from apps.users.permissions import IsAdmin
 
 
+@extend_schema(
+    tags=["Catalog"],
+    summary="List books",
+    description=(
+        "Returns a paginated list of books available in the library. "
+        "Supports filtering by `genre`, `language`, `year_published`, and `available` (boolean). "
+        "Use `search` for full-text search across title, author and description. "
+        "No authentication required."
+    ),
+    auth=[],
+    responses={200: BookListSerializer(many=True)},
+)
 class BookListView(APIView):
-    """GET /api/v1/catalog/books/ — public book listing with filters and pagination."""
-
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -34,9 +46,21 @@ class BookListView(APIView):
         return paginator.get_paginated_response(serializer.data)
 
 
+@extend_schema(
+    tags=["Catalog"],
+    summary="Get book details",
+    description=(
+        "Returns full details for a single book including all copies "
+        "(with availability and condition) and approved reader reviews. "
+        "No authentication required."
+    ),
+    auth=[],
+    responses={
+        200: BookDetailSerializer,
+        404: OpenApiResponse(description="Book not found."),
+    },
+)
 class BookDetailView(APIView):
-    """GET /api/v1/catalog/books/{id}/ — book detail with copies and reviews."""
-
     permission_classes = [AllowAny]
 
     def get(self, request, pk):
@@ -48,9 +72,30 @@ class BookDetailView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+    tags=["Catalog"],
+    summary="Full-text search books",
+    description=(
+        "Searches the catalog using PostgreSQL full-text search (SearchVector) across "
+        "title, author and description. Returns a paginated list. "
+        "No authentication required."
+    ),
+    auth=[],
+    parameters=[
+        OpenApiParameter(
+            name="q",
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.QUERY,
+            required=True,
+            description="Search query string.",
+        ),
+    ],
+    responses={
+        200: BookListSerializer(many=True),
+        400: OpenApiResponse(description="Query parameter `q` is required."),
+    },
+)
 class BookSearchView(APIView):
-    """GET /api/v1/catalog/search/?q= — full-text search via PostgreSQL SearchVector."""
-
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -64,9 +109,29 @@ class BookSearchView(APIView):
         return paginator.get_paginated_response(serializer.data)
 
 
+@extend_schema(
+    tags=["Open Library"],
+    summary="Search Open Library (does not save to DB)",
+    description=(
+        "Queries the Open Library API and returns matching book metadata. "
+        "Results are not saved to the local database — use the import endpoint to add a book. "
+        "Admin only."
+    ),
+    parameters=[
+        OpenApiParameter(
+            name="q",
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.QUERY,
+            required=True,
+            description="Search query forwarded to Open Library.",
+        ),
+    ],
+    responses={
+        200: OpenLibrarySearchResultSerializer(many=True),
+        400: OpenApiResponse(description="Query parameter `q` is required."),
+    },
+)
 class OpenLibrarySearchView(APIView):
-    """GET /api/v1/open-library/search/?q= — search Open Library without saving to DB."""
-
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
@@ -78,26 +143,52 @@ class OpenLibrarySearchView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(
+    tags=["Open Library"],
+    summary="Import book from Open Library by ISBN",
+    description=(
+        "Enqueues a Celery task to fetch book metadata from Open Library for the given ISBN "
+        "and save it to the local catalog. The task runs asynchronously — "
+        "poll the catalog to confirm the book was imported. Admin only."
+    ),
+    responses={
+        202: OpenApiResponse(description="Import task queued successfully."),
+        400: OpenApiResponse(description="Invalid ISBN format."),
+    },
+)
 class OpenLibraryImportView(APIView):
-    """POST /api/v1/open-library/import/{isbn}/ — admin-only: import book from Open Library."""
-
     permission_classes = [IsAuthenticated, IsAdmin]
 
-    def post(self, request, isbn):
+    def post(self, request, identifier):
         from apps.catalog.tasks import import_book_task
-        import_book_task.delay(isbn)
+        import_book_task.delay(identifier)
         return Response(
-            {"message": f"Import for ISBN {isbn} has been queued."},
+            {"message": f"Import for '{identifier}' has been queued."},
             status=status.HTTP_202_ACCEPTED,
         )
 
 
 # ── Admin catalog views ───────────────────────────────────────────────────────
 
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Catalog (Admin)"],
+        summary="List all books",
+        description="Returns a paginated list of all books with admin-level detail including copy counts.",
+        responses={200: BookAdminSerializer(many=True)},
+    ),
+    post=extend_schema(
+        tags=["Catalog (Admin)"],
+        summary="Create a book",
+        description="Creates a new book record in the catalog.",
+        request=BookAdminSerializer,
+        responses={
+            201: BookAdminSerializer,
+            400: OpenApiResponse(description="Validation error."),
+        },
+    ),
+)
 class AdminBookListView(APIView):
-    """GET /api/v1/admin/catalog/books/ — list all books (admin).
-       POST /api/v1/admin/catalog/books/ — create a book (admin)."""
-
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
@@ -115,9 +206,37 @@ class AdminBookListView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Catalog (Admin)"],
+        summary="Get book details",
+        responses={
+            200: BookAdminSerializer,
+            404: OpenApiResponse(description="Book not found."),
+        },
+    ),
+    patch=extend_schema(
+        tags=["Catalog (Admin)"],
+        summary="Update a book",
+        description="Partially updates book metadata.",
+        request=BookAdminSerializer,
+        responses={
+            200: BookAdminSerializer,
+            400: OpenApiResponse(description="Validation error."),
+            404: OpenApiResponse(description="Book not found."),
+        },
+    ),
+    delete=extend_schema(
+        tags=["Catalog (Admin)"],
+        summary="Delete a book",
+        description="Permanently deletes the book and all its copies.",
+        responses={
+            204: OpenApiResponse(description="Book deleted."),
+            404: OpenApiResponse(description="Book not found."),
+        },
+    ),
+)
 class AdminBookDetailView(APIView):
-    """GET/PATCH/DELETE /api/v1/admin/catalog/books/{id}/ — manage a book (admin)."""
-
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def _get_book(self, pk):
@@ -144,10 +263,25 @@ class AdminBookDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Catalog (Admin)"],
+        summary="List all book copies",
+        description="Returns a paginated list of all physical copies across the entire catalog.",
+        responses={200: BookCopySerializer(many=True)},
+    ),
+    post=extend_schema(
+        tags=["Catalog (Admin)"],
+        summary="Create a book copy",
+        description="Adds a new physical copy to an existing book. A QR code generation task is enqueued automatically.",
+        request=BookCopySerializer,
+        responses={
+            201: BookCopySerializer,
+            400: OpenApiResponse(description="Validation error."),
+        },
+    ),
+)
 class AdminCopyListView(APIView):
-    """GET /api/v1/admin/catalog/copies/ — list all copies (admin).
-       POST /api/v1/admin/catalog/copies/ — create a copy (admin)."""
-
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
@@ -165,9 +299,36 @@ class AdminCopyListView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Catalog (Admin)"],
+        summary="Get copy details",
+        responses={
+            200: BookCopySerializer,
+            404: OpenApiResponse(description="Copy not found."),
+        },
+    ),
+    patch=extend_schema(
+        tags=["Catalog (Admin)"],
+        summary="Update a book copy",
+        description="Partially updates a copy's condition or availability status.",
+        request=BookCopySerializer,
+        responses={
+            200: BookCopySerializer,
+            400: OpenApiResponse(description="Validation error."),
+            404: OpenApiResponse(description="Copy not found."),
+        },
+    ),
+    delete=extend_schema(
+        tags=["Catalog (Admin)"],
+        summary="Delete a book copy",
+        responses={
+            204: OpenApiResponse(description="Copy deleted."),
+            404: OpenApiResponse(description="Copy not found."),
+        },
+    ),
+)
 class AdminCopyDetailView(APIView):
-    """GET/PATCH/DELETE /api/v1/admin/catalog/copies/{id}/ — manage a copy (admin)."""
-
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def _get_copy(self, pk):

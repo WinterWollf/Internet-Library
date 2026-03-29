@@ -1,0 +1,179 @@
+// API response types — generated from Django serializers
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+
+export interface User {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: "reader" | "admin";
+  is_blocked: boolean;
+  mfa_enabled: boolean;
+}
+
+export type UserProfile = User;
+
+export interface LoginResponse {
+  access: string;
+  refresh: string;
+  user: User;
+  mfa_required?: boolean;
+}
+
+export interface RegisterPayload {
+  email: string;
+  password: string;
+  confirm_password: string;
+  first_name: string;
+  last_name: string;
+  gender?: "female" | "male";
+}
+
+// ── Catalog ───────────────────────────────────────────────────────────────────
+
+export interface Book {
+  id: number;
+  ol_id: string;
+  isbn: string;
+  title: string;
+  author: string;
+  description: string;
+  cover_url: string;
+  genres: string[];
+  language: string;
+}
+
+/** Matches BookListSerializer — returned by GET /api/v1/catalog/books/ */
+export interface BookListItem {
+  id: number;
+  title: string;
+  author: string;
+  cover_url: string;
+  genres: string[];
+  language: string;
+  year_published: number | null;
+  available_copies_count: number;
+  average_rating: number | null;
+}
+
+/** Matches OpenLibrarySearchResultSerializer */
+export interface OpenLibraryBook {
+  ol_id: string;
+  title: string;
+  author: string;
+  isbn: string | null;
+  year_published: number | null;
+  cover_url: string;
+}
+
+export interface BookDetail extends Book {
+  copies_available: number;
+  total_copies: number;
+  average_rating: number;
+  reviews_count: number;
+}
+
+export interface BookCopy {
+  id: number;
+  book: number;
+  copy_number: number;
+  condition: "new" | "good" | "worn";
+  is_available: boolean;
+  qr_code: string | null;
+}
+
+// ── Loans ─────────────────────────────────────────────────────────────────────
+
+export interface Loan {
+  id: number;
+  copy: BookCopy & { book: Book };
+  reader: number;
+  borrowed_at: string;
+  due_date: string;
+  returned_at: string | null;
+  prolongation_count: number;
+  status: "active" | "returned" | "overdue";
+}
+
+export type LoanActive = Loan & { status: "active" | "overdue" };
+export type LoanHistory = Loan & { status: "returned" };
+
+export interface Penalty {
+  id: number;
+  loan: number;
+  amount: string;
+  reason: "overdue" | "damage" | "loss";
+  paid_at: string | null;
+  waived_by: number | null;
+}
+
+export interface Reservation {
+  id: number;
+  book: Book;
+  reader: number;
+  reserved_at: string;
+  expires_at: string;
+  status: "pending" | "fulfilled" | "cancelled";
+}
+
+// ── Reviews ───────────────────────────────────────────────────────────────────
+
+export interface Review {
+  id: number;
+  book: number;
+  reader: number;
+  rating: number;
+  content: string;
+  is_approved: boolean;
+  created_at: string;
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+export interface Notification {
+  id: number;
+  user: number;
+  type: "reminder" | "overdue" | "reservation_ready" | "account_blocked";
+  loan: number | null;
+  sent_at: string;
+  channel: "email";
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+
+export interface DashboardStats {
+  total_books: number;
+  total_copies: number;
+  active_loans: number;
+  overdue_loans: number;
+  total_users: number;
+  penalties_unpaid: number;
+}
+
+export interface ReaderStats {
+  active_loans: number;
+  overdue_loans: number;
+  total_borrowed: number;
+  unpaid_penalties: number;
+}
+
+// ── Shared ────────────────────────────────────────────────────────────────────
+
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}

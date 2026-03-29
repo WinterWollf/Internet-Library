@@ -1,14 +1,41 @@
 // [v0 import] Component: CatalogPage
 // Location: frontend/app/catalog/page.tsx
 // Connect to: GET /api/v1/catalog/books/ — via CatalogGrid and CatalogFilters children
-// Mock data: all book data is mocked inside CatalogGrid; filter state is local to CatalogFilters
 // Auth: public
-// TODO: lift filter state here and pass as props to CatalogGrid; add URL search params for shareable filter URLs
 
+import { Suspense } from "react"
 import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
 import CatalogFilters from "@/components/catalog-filters"
 import CatalogGrid from "@/components/catalog-grid"
+import { Skeleton } from "@/components/ui/skeleton"
+
+function FiltersSkeleton() {
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex flex-col gap-6">
+      <Skeleton className="h-4 w-20" />
+      <Skeleton className="h-9 w-full" />
+      <div className="h-px bg-slate-100" />
+      <Skeleton className="h-4 w-16" />
+      <Skeleton className="h-9 w-full" />
+    </div>
+  )
+}
+
+function GridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
+          <Skeleton className="w-full aspect-[2/3] rounded-md" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-3 w-1/2" />
+          <Skeleton className="h-9 w-full rounded-md" />
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export default function CatalogPage() {
   return (
@@ -35,12 +62,16 @@ export default function CatalogPage() {
           <div className="flex flex-row gap-8 items-start">
             {/* Sidebar */}
             <aside className="w-72 shrink-0">
-              <CatalogFilters />
+              <Suspense fallback={<FiltersSkeleton />}>
+                <CatalogFilters />
+              </Suspense>
             </aside>
 
             {/* Main grid area */}
             <div className="flex-1 min-w-0">
-              <CatalogGrid />
+              <Suspense fallback={<GridSkeleton />}>
+                <CatalogGrid />
+              </Suspense>
             </div>
           </div>
         </div>

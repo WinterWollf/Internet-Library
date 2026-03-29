@@ -1,0 +1,70 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Library Statistics Dashboard{% endblock %}
+
+{% block content %}
+<h1>Library Statistics Dashboard</h1>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 20px;">
+
+  {% with items=stats %}
+
+  <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px;">
+    <p style="margin:0;font-size:12px;color:#666;text-transform:uppercase;">Total Users</p>
+    <p style="margin:4px 0 0;font-size:28px;font-weight:bold;">{{ items.total_users }}</p>
+  </div>
+
+  <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px;">
+    <p style="margin:0;font-size:12px;color:#666;text-transform:uppercase;">Total Readers</p>
+    <p style="margin:4px 0 0;font-size:28px;font-weight:bold;">{{ items.total_readers }}</p>
+  </div>
+
+  <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px;">
+    <p style="margin:0;font-size:12px;color:#666;text-transform:uppercase;">Blocked Users</p>
+    <p style="margin:4px 0 0;font-size:28px;font-weight:bold;color:#c0392b;">{{ items.blocked_users }}</p>
+  </div>
+
+  <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px;">
+    <p style="margin:0;font-size:12px;color:#666;text-transform:uppercase;">Total Books</p>
+    <p style="margin:4px 0 0;font-size:28px;font-weight:bold;">{{ items.total_books }}</p>
+  </div>
+
+  <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px;">
+    <p style="margin:0;font-size:12px;color:#666;text-transform:uppercase;">Total Copies</p>
+    <p style="margin:4px 0 0;font-size:28px;font-weight:bold;">{{ items.total_copies }}</p>
+  </div>
+
+  <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px;">
+    <p style="margin:0;font-size:12px;color:#666;text-transform:uppercase;">Available Copies</p>
+    <p style="margin:4px 0 0;font-size:28px;font-weight:bold;color:#27ae60;">{{ items.available_copies }}</p>
+  </div>
+
+  <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px;">
+    <p style="margin:0;font-size:12px;color:#666;text-transform:uppercase;">Active Loans</p>
+    <p style="margin:4px 0 0;font-size:28px;font-weight:bold;">{{ items.active_loans }}</p>
+  </div>
+
+  <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px;">
+    <p style="margin:0;font-size:12px;color:#666;text-transform:uppercase;">Overdue Loans</p>
+    <p style="margin:4px 0 0;font-size:28px;font-weight:bold;color:#e67e22;">{{ items.overdue_loans }}</p>
+  </div>
+
+  <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px;">
+    <p style="margin:0;font-size:12px;color:#666;text-transform:uppercase;">Pending Reservations</p>
+    <p style="margin:4px 0 0;font-size:28px;font-weight:bold;">{{ items.pending_reservations }}</p>
+  </div>
+
+  <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px;">
+    <p style="margin:0;font-size:12px;color:#666;text-transform:uppercase;">Unpaid Penalties</p>
+    <p style="margin:4px 0 0;font-size:28px;font-weight:bold;color:#c0392b;">{{ items.total_penalties_unpaid }}</p>
+  </div>
+
+  <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:16px;">
+    <p style="margin:0;font-size:12px;color:#666;text-transform:uppercase;">Collected Penalties</p>
+    <p style="margin:4px 0 0;font-size:28px;font-weight:bold;color:#27ae60;">{{ items.total_penalties_collected }}</p>
+  </div>
+
+  {% endwith %}
+</div>
+{% endblock %}

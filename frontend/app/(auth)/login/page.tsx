@@ -1,42 +1,47 @@
-"use client"
+"use client";
 
 // [v0 import] Component: AuthPage (Login / Register / MFA)
 // Location: frontend/app/(auth)/login/page.tsx  →  route: /login
-// Connect to: POST /api/v1/auth/login/ — Sign in button; POST /api/v1/auth/register/ — Create account button; POST /api/v1/auth/mfa/ — Verify button (MFA step); POST /api/v1/auth/token/refresh — token refresh
-// Mock data: Sign in button currently just switches to MFA view (no real API call); Create account button is disabled when terms not agreed but makes no API call; Resend code button has no handler; Verify button makes no API call
-// Auth: public (unauthenticated only — redirect to /catalog if already logged in)
-// TODO: wire Sign in to POST /api/v1/auth/login/; on 200 check mfa_required flag — if true show MFA view, else redirect to /catalog; wire Register to POST /api/v1/auth/register/ with { first_name, last_name, email, password, gender }; wire Verify to POST /api/v1/auth/mfa/ with the 6-digit OTP; wire Resend code; implement Forgot password flow; implement Continue as guest (redirect to /catalog without auth); store JWT in httpOnly cookie via backend Set-Cookie
+// Connect to: POST /api/v1/auth/login/ — Sign in; POST /api/v1/auth/register/ — Create account; POST /api/v1/auth/mfa/verify/ — MFA verify
+// Mock data: none — all forms wired to real API
+// Auth: public (unauthenticated only — middleware redirects to /catalog if already logged in)
+// TODO: implement Forgot password flow; Resend MFA code
 
-import { useState, useRef, KeyboardEvent } from "react"
-import Link from "next/link"
-import { BookOpen, Eye, EyeOff, ArrowLeft, Shield } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Label } from "@/components/ui/label"
+import { Suspense, useState, useRef, useCallback } from "react";
+import type { KeyboardEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { BookOpen, Eye, EyeOff, ArrowLeft, Shield, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { useAuth } from "@/lib/auth-context";
 
 // ── Password strength ─────────────────────────────────────────────────────────
+
 function getStrength(password: string): number {
-  let score = 0
-  if (password.length >= 8) score++
-  if (/[A-Z]/.test(password)) score++
-  if (/[0-9]/.test(password)) score++
-  if (/[^A-Za-z0-9]/.test(password)) score++
-  return score
+  let score = 0;
+  if (password.length >= 8) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+  return score;
 }
 
-const strengthLabel = ["Too short", "Weak", "Fair", "Good", "Strong"]
+const strengthLabel = ["Too short", "Weak", "Fair", "Good", "Strong"];
 const strengthColor = [
   "bg-slate-200",
   "bg-red-400",
   "bg-orange-400",
   "bg-yellow-400",
   "bg-green-500",
-]
+];
 
 function PasswordStrengthBar({ password }: { password: string }) {
-  const strength = getStrength(password)
+  const strength = getStrength(password);
   return (
     <div className="mt-2 space-y-1">
       <div className="flex gap-1">
@@ -47,8 +52,8 @@ function PasswordStrengthBar({ password }: { password: string }) {
               password.length === 0
                 ? "bg-slate-200"
                 : seg <= strength
-                ? strengthColor[strength]
-                : "bg-slate-200"
+                  ? strengthColor[strength]
+                  : "bg-slate-200"
             }`}
           />
         ))}
@@ -57,45 +62,48 @@ function PasswordStrengthBar({ password }: { password: string }) {
         <p className="text-xs text-slate-500">{strengthLabel[strength]}</p>
       )}
     </div>
-  )
+  );
 }
 
 // ── OTP input row ─────────────────────────────────────────────────────────────
+
 function OTPInput({
   value,
   onChange,
 }: {
-  value: string[]
-  onChange: (val: string[]) => void
+  value: string[];
+  onChange: (val: string[]) => void;
 }) {
-  const refs = useRef<(HTMLInputElement | null)[]>([])
+  const refs = useRef<(HTMLInputElement | null)[]>([]);
 
   const handleKey = (e: KeyboardEvent<HTMLInputElement>, idx: number) => {
     if (e.key === "Backspace") {
       if (value[idx]) {
-        const next = [...value]
-        next[idx] = ""
-        onChange(next)
+        const next = [...value];
+        next[idx] = "";
+        onChange(next);
       } else if (idx > 0) {
-        refs.current[idx - 1]?.focus()
+        refs.current[idx - 1]?.focus();
       }
     }
-  }
+  };
 
   const handleChange = (raw: string, idx: number) => {
-    const digit = raw.replace(/\D/g, "").slice(-1)
-    const next = [...value]
-    next[idx] = digit
-    onChange(next)
-    if (digit && idx < 5) refs.current[idx + 1]?.focus()
-  }
+    const digit = raw.replace(/\D/g, "").slice(-1);
+    const next = [...value];
+    next[idx] = digit;
+    onChange(next);
+    if (digit && idx < 5) refs.current[idx + 1]?.focus();
+  };
 
   return (
     <div className="flex gap-3 justify-center">
       {value.map((digit, idx) => (
         <input
           key={idx}
-          ref={(el) => { refs.current[idx] = el }}
+          ref={(el) => {
+            refs.current[idx] = el;
+          }}
           type="text"
           inputMode="numeric"
           maxLength={1}
@@ -106,35 +114,155 @@ function OTPInput({
         />
       ))}
     </div>
-  )
+  );
+}
+
+// ── Field error helper ────────────────────────────────────────────────────────
+
+function FieldError({ msg }: { msg?: string }) {
+  if (!msg) return null;
+  return <p className="text-xs text-red-500 mt-1">{msg}</p>;
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-type AuthView = "tabs" | "mfa"
 
-export default function AuthPage() {
-  // shared state
-  const [view, setView] = useState<AuthView>("tabs")
-  const [activeTab, setActiveTab] = useState<"login" | "register">("login")
+type AuthView = "tabs" | "mfa";
 
-  // login
-  const [loginEmail, setLoginEmail] = useState("")
-  const [loginPassword, setLoginPassword] = useState("")
-  const [showLoginPw, setShowLoginPw] = useState(false)
+// useSearchParams() requires a Suspense boundary for static prerendering.
+// AuthPageInner contains all interactive logic; the default export wraps it.
+function AuthPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login, register, verifyMfa } = useAuth();
 
-  // register
-  const [firstName, setFirstName] = useState("")
-  const [lastName, setLastName] = useState("")
-  const [regEmail, setRegEmail] = useState("")
-  const [regPassword, setRegPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [showRegPw, setShowRegPw] = useState(false)
-  const [showConfirmPw, setShowConfirmPw] = useState(false)
-  const [gender, setGender] = useState<"female" | "male" | null>(null)
-  const [agreed, setAgreed] = useState(false)
+  const redirectTo = searchParams.get("redirect") ?? "/catalog";
+
+  // view state — honour ?tab=register from navbar Register button
+  const [view, setView] = useState<AuthView>("tabs");
+  const [activeTab, setActiveTab] = useState<"login" | "register">(
+    searchParams.get("tab") === "register" ? "register" : "login",
+  );
+
+  // login fields
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [showLoginPw, setShowLoginPw] = useState(false);
+  const [loginErrors, setLoginErrors] = useState<Record<string, string>>({});
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  // register fields
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [regEmail, setRegEmail] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showRegPw, setShowRegPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [gender, setGender] = useState<"female" | "male" | null>(null);
+  const [agreed, setAgreed] = useState(false);
+  const [regErrors, setRegErrors] = useState<Record<string, string>>({});
+  const [regLoading, setRegLoading] = useState(false);
 
   // MFA
-  const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""])
+  const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""]);
+  const [mfaLoading, setMfaLoading] = useState(false);
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
+
+  const handleLogin = useCallback(async () => {
+    setLoginErrors({});
+    if (!loginEmail) {
+      setLoginErrors({ email: "Email is required." });
+      return;
+    }
+    if (!loginPassword) {
+      setLoginErrors({ password: "Password is required." });
+      return;
+    }
+    setLoginLoading(true);
+    try {
+      const result = await login(loginEmail, loginPassword);
+      if (result.mfa_required) {
+        setView("mfa");
+      } else {
+        router.push(redirectTo);
+      }
+    } catch (err: unknown) {
+      const e = err as { status?: number; code?: string; message?: string };
+      if (e.status === 400 || e.status === 401) {
+        setLoginErrors({ general: e.message ?? "Invalid email or password." });
+      } else {
+        toast.error("An unexpected error occurred. Please try again.");
+      }
+    } finally {
+      setLoginLoading(false);
+    }
+  }, [login, loginEmail, loginPassword, redirectTo, router]);
+
+  const handleRegister = useCallback(async () => {
+    setRegErrors({});
+    const errors: Record<string, string> = {};
+    if (!firstName) errors.firstName = "First name is required.";
+    if (!lastName) errors.lastName = "Last name is required.";
+    if (!regEmail) errors.email = "Email is required.";
+    if (!regPassword) errors.password = "Password is required.";
+    if (regPassword !== confirmPassword)
+      errors.confirmPassword = "Passwords do not match.";
+    if (Object.keys(errors).length) {
+      setRegErrors(errors);
+      return;
+    }
+    setRegLoading(true);
+    try {
+      await register({
+        email: regEmail,
+        password: regPassword,
+        confirm_password: confirmPassword,
+        first_name: firstName,
+        last_name: lastName,
+        ...(gender ? { gender } : {}),
+      });
+      router.push("/catalog");
+    } catch (err: unknown) {
+      const e = err as { status?: number; code?: string; message?: string };
+      if (e.status === 400) {
+        setRegErrors({ general: e.message ?? "Registration failed." });
+      } else {
+        toast.error("An unexpected error occurred. Please try again.");
+      }
+    } finally {
+      setRegLoading(false);
+    }
+  }, [
+    register,
+    firstName,
+    lastName,
+    regEmail,
+    regPassword,
+    confirmPassword,
+    gender,
+    router,
+  ]);
+
+  const handleVerifyMfa = useCallback(async () => {
+    setMfaLoading(true);
+    try {
+      await verifyMfa(otpDigits.join(""));
+      router.push(redirectTo);
+    } catch (err: unknown) {
+      const e = err as { status?: number; message?: string };
+      if (e.status === 400) {
+        toast.error("Invalid code. Please try again.");
+      } else {
+        toast.error("An unexpected error occurred. Please try again.");
+      }
+      setOtpDigits(["", "", "", "", "", ""]);
+    } finally {
+      setMfaLoading(false);
+    }
+  }, [verifyMfa, otpDigits, redirectTo, router]);
+
+  // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4 py-12">
@@ -184,9 +312,18 @@ export default function AuthPage() {
                 </p>
               </div>
 
+              {loginErrors.general && (
+                <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+                  {loginErrors.general}
+                </p>
+              )}
+
               {/* Email */}
               <div className="space-y-1.5">
-                <Label htmlFor="login-email" className="text-sm font-medium text-slate-700">
+                <Label
+                  htmlFor="login-email"
+                  className="text-sm font-medium text-slate-700"
+                >
                   Email address
                 </Label>
                 <Input
@@ -195,14 +332,19 @@ export default function AuthPage() {
                   placeholder="you@example.com"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                   className="h-10 border-slate-300 focus-visible:ring-blue-500 focus-visible:border-blue-500"
                 />
+                <FieldError msg={loginErrors.email} />
               </div>
 
               {/* Password */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="login-pw" className="text-sm font-medium text-slate-700">
+                  <Label
+                    htmlFor="login-pw"
+                    className="text-sm font-medium text-slate-700"
+                  >
                     Password
                   </Label>
                   <Link
@@ -219,6 +361,7 @@ export default function AuthPage() {
                     placeholder="Enter your password"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                     className="h-10 pr-10 border-slate-300 focus-visible:ring-blue-500 focus-visible:border-blue-500"
                   />
                   <button
@@ -227,17 +370,27 @@ export default function AuthPage() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                     aria-label={showLoginPw ? "Hide password" : "Show password"}
                   >
-                    {showLoginPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showLoginPw ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
+                <FieldError msg={loginErrors.password} />
               </div>
 
               {/* Sign in button */}
               <Button
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white h-10 font-medium"
-                onClick={() => setView("mfa")}
+                onClick={handleLogin}
+                disabled={loginLoading}
               >
-                Sign in
+                {loginLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Sign in"
+                )}
               </Button>
 
               {/* Divider */}
@@ -251,6 +404,7 @@ export default function AuthPage() {
               <Button
                 variant="outline"
                 className="w-full h-10 border-slate-300 text-slate-700 hover:bg-slate-50 font-medium"
+                onClick={() => router.push("/catalog")}
               >
                 Continue as guest
               </Button>
@@ -267,10 +421,19 @@ export default function AuthPage() {
                 </p>
               </div>
 
+              {regErrors.general && (
+                <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+                  {regErrors.general}
+                </p>
+              )}
+
               {/* Name row */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="first-name" className="text-sm font-medium text-slate-700">
+                  <Label
+                    htmlFor="first-name"
+                    className="text-sm font-medium text-slate-700"
+                  >
                     First name
                   </Label>
                   <Input
@@ -280,9 +443,13 @@ export default function AuthPage() {
                     onChange={(e) => setFirstName(e.target.value)}
                     className="h-10 border-slate-300 focus-visible:ring-blue-500 focus-visible:border-blue-500"
                   />
+                  <FieldError msg={regErrors.firstName} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="last-name" className="text-sm font-medium text-slate-700">
+                  <Label
+                    htmlFor="last-name"
+                    className="text-sm font-medium text-slate-700"
+                  >
                     Last name
                   </Label>
                   <Input
@@ -292,12 +459,16 @@ export default function AuthPage() {
                     onChange={(e) => setLastName(e.target.value)}
                     className="h-10 border-slate-300 focus-visible:ring-blue-500 focus-visible:border-blue-500"
                   />
+                  <FieldError msg={regErrors.lastName} />
                 </div>
               </div>
 
               {/* Email */}
               <div className="space-y-1.5">
-                <Label htmlFor="reg-email" className="text-sm font-medium text-slate-700">
+                <Label
+                  htmlFor="reg-email"
+                  className="text-sm font-medium text-slate-700"
+                >
                   Email address
                 </Label>
                 <Input
@@ -308,11 +479,15 @@ export default function AuthPage() {
                   onChange={(e) => setRegEmail(e.target.value)}
                   className="h-10 border-slate-300 focus-visible:ring-blue-500 focus-visible:border-blue-500"
                 />
+                <FieldError msg={regErrors.email} />
               </div>
 
               {/* Password + strength */}
               <div className="space-y-1.5">
-                <Label htmlFor="reg-pw" className="text-sm font-medium text-slate-700">
+                <Label
+                  htmlFor="reg-pw"
+                  className="text-sm font-medium text-slate-700"
+                >
                   Password
                 </Label>
                 <div className="relative">
@@ -330,15 +505,23 @@ export default function AuthPage() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                     aria-label={showRegPw ? "Hide password" : "Show password"}
                   >
-                    {showRegPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showRegPw ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
                 <PasswordStrengthBar password={regPassword} />
+                <FieldError msg={regErrors.password} />
               </div>
 
               {/* Confirm password */}
               <div className="space-y-1.5">
-                <Label htmlFor="confirm-pw" className="text-sm font-medium text-slate-700">
+                <Label
+                  htmlFor="confirm-pw"
+                  className="text-sm font-medium text-slate-700"
+                >
                   Confirm password
                 </Label>
                 <div className="relative">
@@ -354,20 +537,33 @@ export default function AuthPage() {
                     type="button"
                     onClick={() => setShowConfirmPw(!showConfirmPw)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    aria-label={showConfirmPw ? "Hide password" : "Show password"}
+                    aria-label={
+                      showConfirmPw ? "Hide password" : "Show password"
+                    }
                   >
-                    {showConfirmPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showConfirmPw ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
-                {confirmPassword.length > 0 && regPassword !== confirmPassword && (
-                  <p className="text-xs text-red-500">Passwords do not match.</p>
-                )}
+                {confirmPassword.length > 0 &&
+                  regPassword !== confirmPassword && (
+                    <p className="text-xs text-red-500">
+                      Passwords do not match.
+                    </p>
+                  )}
+                <FieldError msg={regErrors.confirmPassword} />
               </div>
 
               {/* Gender selector */}
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-slate-700">
-                  Gender <span className="text-slate-400 font-normal">(sets your profile avatar)</span>
+                  Gender{" "}
+                  <span className="text-slate-400 font-normal">
+                    (sets your profile avatar)
+                  </span>
                 </Label>
                 <div className="grid grid-cols-2 gap-3">
                   {(["female", "male"] as const).map((g) => (
@@ -395,7 +591,10 @@ export default function AuthPage() {
                   onCheckedChange={(v) => setAgreed(!!v)}
                   className="mt-0.5 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                 />
-                <label htmlFor="terms" className="text-sm text-slate-600 leading-relaxed cursor-pointer">
+                <label
+                  htmlFor="terms"
+                  className="text-sm text-slate-600 leading-relaxed cursor-pointer"
+                >
                   I agree to the{" "}
                   <Link href="#" className="text-blue-600 hover:underline">
                     Terms of Service
@@ -410,9 +609,14 @@ export default function AuthPage() {
               {/* Submit */}
               <Button
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white h-10 font-medium"
-                disabled={!agreed}
+                disabled={!agreed || regLoading}
+                onClick={handleRegister}
               >
-                Create account
+                {regLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Create account"
+                )}
               </Button>
             </TabsContent>
           </Tabs>
@@ -442,9 +646,14 @@ export default function AuthPage() {
             {/* Verify */}
             <Button
               className="w-full bg-blue-600 hover:bg-blue-700 text-white h-10 font-medium"
-              disabled={otpDigits.some((d) => d === "")}
+              disabled={otpDigits.some((d) => d === "") || mfaLoading}
+              onClick={handleVerifyMfa}
             >
-              Verify
+              {mfaLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Verify"
+              )}
             </Button>
 
             {/* Resend */}
@@ -462,8 +671,8 @@ export default function AuthPage() {
               <button
                 type="button"
                 onClick={() => {
-                  setView("tabs")
-                  setOtpDigits(["", "", "", "", "", ""])
+                  setView("tabs");
+                  setOtpDigits(["", "", "", "", "", ""]);
                 }}
                 className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700"
               >
@@ -506,5 +715,13 @@ export default function AuthPage() {
         )}
       </p>
     </div>
-  )
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense>
+      <AuthPageInner />
+    </Suspense>
+  );
 }

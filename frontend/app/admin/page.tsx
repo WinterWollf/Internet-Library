@@ -22,13 +22,17 @@ import {
   ChevronRight,
   Bell,
   Shield,
+  Download,
+  Loader2,
 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
+import type { OpenLibraryBook } from "@/lib/types"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -509,6 +513,154 @@ function FlaggedAccountsSection() {
 }
 
 // ---------------------------------------------------------------------------
+// Open Library Import
+// ---------------------------------------------------------------------------
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1"
+
+function OpenLibraryImport() {
+  const [query, setQuery] = useState("")
+  const [results, setResults] = useState<OpenLibraryBook[]>([])
+  const [searching, setSearching] = useState(false)
+  const [importing, setImporting] = useState<string | null>(null)
+
+  async function handleSearch(e: React.FormEvent) {
+    e.preventDefault()
+    if (!query.trim()) return
+    setSearching(true)
+    setResults([])
+    try {
+      const token = document.cookie.match(/(?:^|;\s*)access_token=([^;]*)/)?.[1]
+      const res = await fetch(`${API}/open-library/search/?q=${encodeURIComponent(query)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
+      })
+      if (!res.ok) throw new Error("Search failed")
+      const data = (await res.json()) as OpenLibraryBook[]
+      setResults(data)
+    } catch {
+      toast.error("Failed to search Open Library")
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  async function handleImport(identifier: string, title: string) {
+    setImporting(identifier)
+    try {
+      const token = document.cookie.match(/(?:^|;\s*)access_token=([^;]*)/)?.[1]
+      const res = await fetch(`${API}/open-library/import/${encodeURIComponent(identifier)}/`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
+      })
+      if (!res.ok) throw new Error("Import failed")
+      toast.success(`"${title}" queued for import`)
+    } catch {
+      toast.error(`Failed to import "${title}"`)
+    } finally {
+      setImporting(null)
+    }
+  }
+
+  return (
+    <section aria-labelledby="import-heading">
+      <h2 id="import-heading" className="text-lg font-semibold text-slate-900 mb-4">
+        Import from Open Library
+      </h2>
+      <Card className="bg-white border-slate-200 shadow-sm">
+        <CardContent className="p-6 flex flex-col gap-5">
+          {/* Search form */}
+          <form onSubmit={handleSearch} className="flex gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by title, author, or ISBN..."
+                className="pl-9 bg-slate-50 border-slate-200 text-slate-800 placeholder:text-slate-400 focus-visible:ring-primary/40"
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={searching || !query.trim()}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
+            >
+              {searching ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Search
+            </Button>
+          </form>
+
+          {/* Results */}
+          {results.length > 0 && (
+            <div className="flex flex-col divide-y divide-slate-100">
+              {results.map((book) => (
+                <div key={book.ol_id} className="flex items-center gap-4 py-3">
+                  {/* Cover thumbnail */}
+                  {book.cover_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={book.cover_url}
+                      alt={book.title}
+                      className="w-10 h-14 object-cover rounded shadow-sm shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-14 bg-slate-100 rounded flex items-center justify-center shrink-0">
+                      <BookOpen className="w-4 h-4 text-slate-400" />
+                    </div>
+                  )}
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-slate-900 text-sm truncate">{book.title}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{book.author}</p>
+                    <div className="flex items-center gap-3 mt-0.5">
+                      {book.isbn && (
+                        <span className="text-xs text-slate-400">ISBN: {book.isbn}</span>
+                      )}
+                      {book.year_published && (
+                        <span className="text-xs text-slate-400">{book.year_published}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Import button — uses ISBN if available, OL ID as fallback */}
+                  {(() => {
+                    const importId = book.isbn ?? book.ol_id
+                    const isImporting = importing !== null && importing === importId
+                    return (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 h-8 text-xs border-blue-200 text-blue-600 hover:bg-blue-50 bg-white"
+                        onClick={() => importId && void handleImport(importId, book.title)}
+                        disabled={isImporting || !importId}
+                      >
+                        {isImporting ? (
+                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                        ) : (
+                          <Download className="w-3 h-3 mr-1" />
+                        )}
+                        Import
+                      </Button>
+                    )
+                  })()}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!searching && query && results.length === 0 && (
+            <p className="text-sm text-slate-400 text-center py-4">
+              No results found. Try a different search term.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function AdminPage() {
@@ -554,6 +706,9 @@ export default function AdminPage() {
 
           {/* Flagged accounts */}
           <FlaggedAccountsSection />
+
+          {/* Open Library import */}
+          <OpenLibraryImport />
         </div>
       </main>
 

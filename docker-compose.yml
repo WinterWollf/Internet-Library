@@ -2,11 +2,12 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+      - INTERNAL_API_URL=http://backend:8000/api/v1
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -28,7 +29,15 @@ services:
     depends_on:
       - postgres
       - redis
-    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --reload
+    command: >
+      sh -c "python manage.py migrate --no-input &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --reload"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/schema/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   postgres:
     image: postgres:17
@@ -56,8 +65,8 @@ services:
       - ./backend:/app
       - media_files:/app/media
     depends_on:
-      - postgres
-      - redis
+      backend:
+        condition: service_healthy
     command: celery -A config worker --loglevel=info
 
   celery-beat:
@@ -69,8 +78,8 @@ services:
     volumes:
       - ./backend:/app
     depends_on:
-      - postgres
-      - redis
+      backend:
+        condition: service_healthy
     command: celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
 
 volumes:

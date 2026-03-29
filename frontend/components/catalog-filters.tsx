@@ -2,16 +2,14 @@
 
 // [v0 import] Component: CatalogFilters
 // Location: frontend/components/catalog-filters.tsx
-// Connect to: GET /api/v1/catalog/books/?search=&genre=&available=&language= — filter params passed to parent/grid
-// Mock data: GENRES and LANGUAGES arrays are hardcoded; availability toggle has no API integration
+// Connect to: GET /api/v1/catalog/books/?search=&genre=&available=&language= — filter params passed via URL to CatalogGrid
 // Auth: public
-// TODO: lift filter state to CatalogPage and pass as props/query params to CatalogGrid; wire Apply button to trigger fetch; add URL search params sync
 
-import { useState } from "react"
-import { Search, Star } from "lucide-react"
+import { useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -34,26 +32,39 @@ const GENRES = [
 const LANGUAGES = ["English", "Polish", "German", "French"]
 
 export default function CatalogFilters() {
-  const [search, setSearch] = useState("")
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([])
-  const [availability, setAvailability] = useState<"all" | "available">("all")
-  const [language, setLanguage] = useState("")
-  const [minRating, setMinRating] = useState(0)
-  const [hoverRating, setHoverRating] = useState(0)
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
-  function toggleGenre(genre: string) {
-    setSelectedGenres((prev) =>
-      prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre]
-    )
+  const [search, setSearch] = useState(searchParams.get("search") ?? "")
+  const [genre, setGenre] = useState(searchParams.get("genre") ?? "")
+  const [availability, setAvailability] = useState<"all" | "available">(
+    searchParams.get("available") === "true" ? "available" : "all"
+  )
+  const [language, setLanguage] = useState(searchParams.get("language") ?? "")
+
+  // Sync local state when URL changes (e.g., browser back button)
+  useEffect(() => {
+    setSearch(searchParams.get("search") ?? "")
+    setGenre(searchParams.get("genre") ?? "")
+    setAvailability(searchParams.get("available") === "true" ? "available" : "all")
+    setLanguage(searchParams.get("language") ?? "")
+  }, [searchParams])
+
+  function applyFilters() {
+    const params = new URLSearchParams()
+    if (search.trim()) params.set("search", search.trim())
+    if (genre) params.set("genre", genre)
+    if (availability === "available") params.set("available", "true")
+    if (language) params.set("language", language)
+    router.push(`/catalog?${params.toString()}`)
   }
 
   function clearFilters() {
     setSearch("")
-    setSelectedGenres([])
+    setGenre("")
     setAvailability("all")
     setLanguage("")
-    setMinRating(0)
-    setHoverRating(0)
+    router.push("/catalog")
   }
 
   return (
@@ -68,6 +79,7 @@ export default function CatalogFilters() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") applyFilters() }}
             placeholder="Search by title or author..."
             className="pl-9 bg-slate-50 border-slate-200 text-slate-800 placeholder:text-slate-400 focus-visible:ring-primary/40 h-9 text-sm"
           />
@@ -78,28 +90,30 @@ export default function CatalogFilters() {
       <div className="h-px bg-slate-100" />
 
       {/* Genre */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         <Label className="text-xs font-semibold uppercase tracking-widest text-slate-500">
           Genre
         </Label>
-        <div className="flex flex-col gap-2.5">
-          {GENRES.map((genre) => (
-            <div key={genre} className="flex items-center gap-2.5">
-              <Checkbox
-                id={`genre-${genre}`}
-                checked={selectedGenres.includes(genre)}
-                onCheckedChange={() => toggleGenre(genre)}
-                className="border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-              />
-              <label
-                htmlFor={`genre-${genre}`}
-                className="text-sm text-slate-700 cursor-pointer select-none leading-none"
-              >
-                {genre}
-              </label>
-            </div>
-          ))}
-        </div>
+        <Select value={genre} onValueChange={setGenre}>
+          <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-700 h-9 text-sm focus:ring-primary/40">
+            <SelectValue placeholder="All genres" />
+          </SelectTrigger>
+          <SelectContent>
+            {GENRES.map((g) => (
+              <SelectItem key={g} value={g} className="text-sm">
+                {g}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {genre && (
+          <button
+            onClick={() => setGenre("")}
+            className="text-xs text-slate-400 hover:text-slate-600 text-left"
+          >
+            Clear genre
+          </button>
+        )}
       </div>
 
       {/* Divider */}
@@ -147,47 +161,14 @@ export default function CatalogFilters() {
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      {/* Divider */}
-      <div className="h-px bg-slate-100" />
-
-      {/* Rating */}
-      <div className="flex flex-col gap-3">
-        <Label className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-          Minimum Rating
-        </Label>
-        <div
-          className="flex items-center gap-1"
-          role="group"
-          aria-label="Minimum star rating filter"
-          onMouseLeave={() => setHoverRating(0)}
-        >
-          {Array.from({ length: 5 }).map((_, i) => {
-            const starVal = i + 1
-            const filled = starVal <= (hoverRating || minRating)
-            return (
-              <button
-                key={i}
-                aria-label={`${starVal} star minimum`}
-                onClick={() => setMinRating(starVal === minRating ? 0 : starVal)}
-                onMouseEnter={() => setHoverRating(starVal)}
-                className="p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
-              >
-                <Star
-                  className={`w-6 h-6 transition-colors ${
-                    filled
-                      ? "text-yellow-400 fill-yellow-400"
-                      : "text-slate-300 fill-transparent"
-                  }`}
-                />
-              </button>
-            )
-          })}
-          {minRating > 0 && (
-            <span className="text-xs text-slate-500 ml-1">& up</span>
-          )}
-        </div>
+        {language && (
+          <button
+            onClick={() => setLanguage("")}
+            className="text-xs text-slate-400 hover:text-slate-600 text-left"
+          >
+            Clear language
+          </button>
+        )}
       </div>
 
       {/* Divider */}
@@ -195,7 +176,10 @@ export default function CatalogFilters() {
 
       {/* Actions */}
       <div className="flex flex-col gap-3">
-        <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium">
+        <Button
+          onClick={applyFilters}
+          className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
+        >
           Apply filters
         </Button>
         <button

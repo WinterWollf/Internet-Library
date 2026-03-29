@@ -21,6 +21,15 @@ from apps.users.views import (
     AdminUserDetailView,
     AdminUserListView,
 )
+from apps.stats.views import (
+    AdminDashboardView,
+    AdminLoansPerMonthView,
+    AdminMostBorrowedBooksView,
+    AdminMostBorrowedGenresView,
+    AdminOverdueReportView,
+    AdminPopularBooksView,
+    AdminStatsNotificationsView,
+)
 
 urlpatterns = [
     # User management
@@ -40,5 +49,12 @@ urlpatterns = [
     # Notification management
     path("notifications/", AdminNotificationListView.as_view(), name="admin_notification_list"),
     path("notifications/stats/", AdminNotificationStatsView.as_view(), name="admin_notification_stats"),
-    # TODO: stats/ — GET /api/v1/admin/stats/
+    # Statistics
+    path("stats/dashboard/", AdminDashboardView.as_view(), name="admin_stats_dashboard"),
+    path("stats/loans-per-month/", AdminLoansPerMonthView.as_view(), name="admin_stats_loans_per_month"),
+    path("stats/most-borrowed-books/", AdminMostBorrowedBooksView.as_view(), name="admin_stats_most_borrowed_books"),
+    path("stats/most-borrowed-genres/", AdminMostBorrowedGenresView.as_view(), name="admin_stats_most_borrowed_genres"),
+    path("stats/overdue-report/", AdminOverdueReportView.as_view(), name="admin_stats_overdue_report"),
+    path("stats/popular-books/", AdminPopularBooksView.as_view(), name="admin_stats_popular_books"),
+    path("stats/notifications/", AdminStatsNotificationsView.as_view(), name="admin_stats_notifications"),
 ]

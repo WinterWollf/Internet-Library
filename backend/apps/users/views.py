@@ -4,6 +4,7 @@ import urllib.parse
 
 import qrcode
 from django_otp.plugins.otp_totp.models import TOTPDevice
+from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -45,6 +46,30 @@ def _make_qr_png_b64(uri: str) -> str:
 
 # ── Auth endpoints ────────────────────────────────────────────────────────────
 
+@extend_schema(
+    tags=["Auth"],
+    summary="Register a new reader account",
+    description=(
+        "Creates a new reader account and immediately returns JWT access and refresh tokens "
+        "alongside the user profile. No authentication required."
+    ),
+    auth=[],
+    request=RegisterSerializer,
+    responses={
+        201: OpenApiResponse(description="Registration successful — returns `access`, `refresh` and `user` profile."),
+        400: OpenApiResponse(description="Validation error (e.g. email already taken, passwords don't match)."),
+    },
+)
+def _token_pair(user):
+    """Return a RefreshToken with email and role claims embedded."""
+    refresh = RefreshToken.for_user(user)
+    refresh["email"] = user.email
+    refresh["role"] = user.role
+    refresh.access_token["email"] = user.email
+    refresh.access_token["role"] = user.role
+    return refresh
+
+
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -52,7 +77,7 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = services.register_user(serializer.validated_data)
-        refresh = RefreshToken.for_user(user)
+        refresh = _token_pair(user)
         return Response(
             {
                 "access": str(refresh.access_token),
@@ -63,6 +88,23 @@ class RegisterView(APIView):
         )
 
 
+@extend_schema(
+    tags=["Auth"],
+    summary="Login with email and password",
+    description=(
+        "Authenticates the user and returns JWT tokens. "
+        "If the account has MFA enabled, `mfa_required` will be `true` — "
+        "the client should then verify the TOTP code via `POST /api/v1/auth/mfa/verify/` "
+        "before granting access."
+    ),
+    auth=[],
+    request=LoginSerializer,
+    responses={
+        200: OpenApiResponse(description="Login successful — returns `access`, `refresh`, `mfa_required` and `user` profile."),
+        401: OpenApiResponse(description="Invalid email or password."),
+        403: OpenApiResponse(description="Account is blocked."),
+    },
+)
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -86,7 +128,7 @@ class LoginView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        refresh = RefreshToken.for_user(user)
+        refresh = _token_pair(user)
         return Response({
             "access": str(refresh.access_token),
             "refresh": str(refresh),
@@ -95,6 +137,18 @@ class LoginView(APIView):
         })
 
 
+@extend_schema(
+    tags=["Auth"],
+    summary="Logout — blacklist refresh token",
+    description=(
+        "Blacklists the provided refresh token so it can no longer be used to obtain new access tokens. "
+        "The current access token remains valid until its natural expiry."
+    ),
+    responses={
+        204: OpenApiResponse(description="Logged out successfully."),
+        400: OpenApiResponse(description="Refresh token missing or invalid."),
+    },
+)
 class LogoutView(APIView):
     def post(self, request):
         refresh_token = request.data.get("refresh")
@@ -114,6 +168,19 @@ class LogoutView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Auth"],
+        summary="Get own profile",
+        responses={200: UserProfileSerializer},
+    ),
+    patch=extend_schema(
+        tags=["Auth"],
+        summary="Update own profile",
+        description="Partially updates the authenticated user's profile. Editable fields: `first_name`, `last_name`, `phone`, `gender`.",
+        responses={200: UserProfileSerializer},
+    ),
+)
 class ProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserProfileSerializer
     http_method_names = ["get", "patch"]
@@ -122,6 +189,16 @@ class ProfileView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
 
+@extend_schema(
+    tags=["Auth"],
+    summary="Change password",
+    description="Changes the authenticated user's password. Requires the current password for verification.",
+    request=ChangePasswordSerializer,
+    responses={
+        200: OpenApiResponse(description="Password updated successfully."),
+        400: OpenApiResponse(description="Current password incorrect, or new passwords don't match."),
+    },
+)
 class ChangePasswordView(APIView):
     def post(self, request):
         serializer = ChangePasswordSerializer(
@@ -135,6 +212,18 @@ class ChangePasswordView(APIView):
 
 # ── MFA endpoints ─────────────────────────────────────────────────────────────
 
+@extend_schema(
+    tags=["Auth"],
+    summary="Start MFA setup — get TOTP QR code",
+    description=(
+        "Generates a new TOTP device for the authenticated user and returns an `otpauth://` URI "
+        "together with a base64-encoded QR code PNG. Scan the QR code in an authenticator app "
+        "(Google Authenticator, Authy, etc.), then confirm setup with `POST /api/v1/auth/mfa/verify/`."
+    ),
+    responses={
+        200: OpenApiResponse(description="Returns `otpauth_uri` string and `qr_png_base64` encoded PNG."),
+    },
+)
 class MfaSetupView(APIView):
     def post(self, request):
         user = request.user
@@ -148,6 +237,18 @@ class MfaSetupView(APIView):
         return Response({"otpauth_uri": uri, "qr_png_base64": qr_b64})
 
 
+@extend_schema(
+    tags=["Auth"],
+    summary="Verify TOTP code and activate MFA",
+    description=(
+        "Confirms the pending TOTP device by submitting the 6-digit code from the authenticator app. "
+        "On success the device is marked confirmed and `mfa_enabled` is set to `true` on the user account."
+    ),
+    responses={
+        200: OpenApiResponse(description="MFA activated successfully."),
+        400: OpenApiResponse(description="Invalid TOTP code, or no pending MFA setup found for this user."),
+    },
+)
 class MfaVerifyView(APIView):
     def post(self, request):
         code = request.data.get("code", "")
@@ -172,6 +273,14 @@ class MfaVerifyView(APIView):
         return Response({"detail": "MFA enabled successfully."})
 
 
+@extend_schema(
+    tags=["Auth"],
+    summary="Disable MFA",
+    description="Removes all TOTP devices for the user and sets `mfa_enabled` to `false`.",
+    responses={
+        200: OpenApiResponse(description="MFA disabled successfully."),
+    },
+)
 class MfaDisableView(APIView):
     def post(self, request):
         TOTPDevice.objects.filter(user=request.user).delete()
@@ -181,6 +290,16 @@ class MfaDisableView(APIView):
 
 # ── Admin user management ─────────────────────────────────────────────────────
 
+@extend_schema(
+    tags=["Users (Admin)"],
+    summary="List all users",
+    description=(
+        "Returns a paginated list of all registered users. "
+        "Filter by `role` (`reader` | `admin`) or `is_blocked`. "
+        "Search by `email`, `first_name`, or `last_name`."
+    ),
+    responses={200: UserAdminSerializer(many=True)},
+)
 class AdminUserListView(generics.ListAPIView):
     serializer_class = UserAdminSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
@@ -191,12 +310,33 @@ class AdminUserListView(generics.ListAPIView):
         return User.objects.all()
 
 
+@extend_schema(
+    tags=["Users (Admin)"],
+    summary="Get user details",
+    responses={
+        200: UserAdminSerializer,
+        404: OpenApiResponse(description="User not found."),
+    },
+)
 class AdminUserDetailView(generics.RetrieveAPIView):
     serializer_class = UserAdminSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
     queryset = User.objects.all()
 
 
+@extend_schema(
+    tags=["Users (Admin)"],
+    summary="Block a user",
+    description=(
+        "Blocks the specified user account. A non-empty `reason` is required. "
+        "Blocked users receive a 403 Forbidden on every authenticated request."
+    ),
+    responses={
+        200: UserAdminSerializer,
+        400: OpenApiResponse(description="Block reason is required."),
+        404: OpenApiResponse(description="User not found."),
+    },
+)
 class AdminBlockUserView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
 
@@ -217,6 +357,15 @@ class AdminBlockUserView(APIView):
         return Response(UserAdminSerializer(user).data)
 
 
+@extend_schema(
+    tags=["Users (Admin)"],
+    summary="Unblock a user",
+    description="Removes the block from the specified user account, restoring normal access.",
+    responses={
+        200: UserAdminSerializer,
+        404: OpenApiResponse(description="User not found."),
+    },
+)
 class AdminUnblockUserView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
 

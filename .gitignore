@@ -67,3 +67,6 @@ htmlcov/
 # v0 temp (keep directory, ignore contents)
 v0_temp/*
 !v0_temp/.gitkeep
+
+# GitHub Actions secrets documentation (contains sensitive instructions)
+.github/SECRETS.md
