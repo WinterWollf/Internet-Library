@@ -1,6 +1,6 @@
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema, extend_schema_view
 from drf_spectacular.types import OpenApiTypes
-from rest_framework import status
+from rest_framework import permissions, status
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -8,12 +8,15 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.catalog.models import Book, BookCopy
+from apps.catalog.models import Review
 from apps.catalog.serializers import (
     BookAdminSerializer,
     BookCopySerializer,
     BookDetailSerializer,
     BookListSerializer,
     OpenLibrarySearchResultSerializer,
+    ReviewCreateSerializer,
+    ReviewSerializer,
 )
 from apps.catalog.services import (
     get_book_detail,
@@ -68,7 +71,7 @@ class BookDetailView(APIView):
             book = get_book_detail(pk)
         except Book.DoesNotExist:
             raise NotFound({"error": "Book not found.", "code": "BOOK_NOT_FOUND"})
-        serializer = BookDetailSerializer(book)
+        serializer = BookDetailSerializer(book, context={"request": request})
         return Response(serializer.data)
 
 
@@ -166,6 +169,71 @@ class OpenLibraryImportView(APIView):
             {"message": f"Import for '{identifier}' has been queued."},
             status=status.HTTP_202_ACCEPTED,
         )
+
+
+@extend_schema_view(
+    get=extend_schema(
+        tags=["Reviews"],
+        summary="List approved reviews for a book",
+        auth=[],
+        parameters=[
+            OpenApiParameter(
+                name="book",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                required=True,
+                description="Book ID to fetch reviews for.",
+            ),
+        ],
+        responses={200: ReviewSerializer(many=True)},
+    ),
+    post=extend_schema(
+        tags=["Reviews"],
+        summary="Submit a review",
+        description="Creates a new review for the specified book. One review per reader per book.",
+        request=ReviewCreateSerializer,
+        responses={
+            201: ReviewSerializer,
+            400: OpenApiResponse(description="Already reviewed or validation error."),
+            404: OpenApiResponse(description="Book not found."),
+        },
+    ),
+)
+class ReviewListCreateView(APIView):
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
+
+    def get(self, request):
+        book_id = request.query_params.get("book")
+        if not book_id:
+            raise ValidationError({"error": "Query parameter 'book' is required.", "code": "MISSING_BOOK"})
+        qs = Review.objects.filter(book_id=book_id, is_approved=True).select_related("reader")
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(qs, request)
+        return paginator.get_paginated_response(ReviewSerializer(page, many=True).data)
+
+    def post(self, request):
+        serializer = ReviewCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        book_id = serializer.validated_data["book"]
+        try:
+            book = Book.objects.get(pk=book_id)
+        except Book.DoesNotExist:
+            raise NotFound({"error": "Book not found.", "code": "BOOK_NOT_FOUND"})
+        if Review.objects.filter(book=book, reader=request.user).exists():
+            return Response(
+                {"error": "You have already reviewed this book.", "code": "ALREADY_REVIEWED"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        review = Review.objects.create(
+            book=book,
+            reader=request.user,
+            rating=serializer.validated_data["rating"],
+            content=serializer.validated_data["content"],
+        )
+        return Response(ReviewSerializer(review).data, status=status.HTTP_201_CREATED)
 
 
 # ── Admin catalog views ───────────────────────────────────────────────────────

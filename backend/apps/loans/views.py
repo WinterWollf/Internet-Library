@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 
 from apps.loans.models import Loan, Penalty, Reservation
 from apps.loans.serializers import (
+    AdminLoanSerializer,
     LoanActionSerializer,
     LoanCreateSerializer,
     LoanSerializer,
@@ -165,7 +166,7 @@ class PenaltyListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        penalties = Penalty.objects.select_related("loan").filter(loan__reader=request.user)
+        penalties = Penalty.objects.select_related("loan__copy__book").filter(loan__reader=request.user)
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(penalties, request)
         return paginator.get_paginated_response(PenaltySerializer(page, many=True).data)
@@ -312,9 +313,20 @@ class AdminLoanListView(APIView):
         if book_id := request.query_params.get("book"):
             qs = qs.filter(copy__book_id=book_id)
 
+        ordering = request.query_params.get("ordering", "-borrowed_at")
+        allowed_orderings = {"borrowed_at", "-borrowed_at", "due_date", "-due_date", "status", "-status"}
+        if ordering not in allowed_orderings:
+            ordering = "-borrowed_at"
+        qs = qs.order_by(ordering)
+
         paginator = PageNumberPagination()
+        try:
+            paginator.page_size = min(int(request.query_params.get("page_size", 20)), 100)
+        except (ValueError, TypeError):
+            paginator.page_size = 20
+
         page = paginator.paginate_queryset(qs, request)
-        return paginator.get_paginated_response(LoanSerializer(page, many=True).data)
+        return paginator.get_paginated_response(AdminLoanSerializer(page, many=True).data)
 
 
 @extend_schema(

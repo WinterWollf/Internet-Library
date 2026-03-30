@@ -66,7 +66,7 @@ export function proxy(request: NextRequest) {
     }
     if (role !== "admin") {
       const url = new URL("/catalog", request.url);
-      url.searchParams.set("error", "unauthorized");
+      url.searchParams.set("blocked", "admin");
       return NextResponse.redirect(url);
     }
     return NextResponse.next();

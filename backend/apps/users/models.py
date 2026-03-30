@@ -23,6 +23,12 @@ class User(AbstractUser):
     gender = models.CharField(max_length=10, choices=Gender.choices, blank=True, default="")
     phone = models.CharField(max_length=20, blank=True, default="")
 
+    # Notification preferences
+    email_reminders = models.BooleanField(default=True)
+    email_overdue = models.BooleanField(default=True)
+    email_reservation = models.BooleanField(default=True)
+    email_account_alerts = models.BooleanField(default=True)
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]
 

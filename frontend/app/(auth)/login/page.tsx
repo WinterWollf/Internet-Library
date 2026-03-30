@@ -250,13 +250,18 @@ function AuthPageInner() {
       await verifyMfa(otpDigits.join(""));
       router.push(redirectTo);
     } catch (err: unknown) {
-      const e = err as { status?: number; message?: string };
-      if (e.status === 400) {
+      const e = err as { status?: number; code?: string; message?: string };
+      if (e.code === "MFA_EXPIRED") {
+        toast.error("Session expired. Please log in again.");
+        setView("tabs");
+        setOtpDigits(["", "", "", "", "", ""]);
+      } else if (e.status === 400) {
         toast.error("Invalid code. Please try again.");
+        setOtpDigits(["", "", "", "", "", ""]);
       } else {
         toast.error("An unexpected error occurred. Please try again.");
+        setOtpDigits(["", "", "", "", "", ""]);
       }
-      setOtpDigits(["", "", "", "", "", ""]);
     } finally {
       setMfaLoading(false);
     }

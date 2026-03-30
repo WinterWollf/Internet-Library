@@ -66,6 +66,11 @@ def get_book_detail(book_id: int) -> Book:
             reviews_count=Count(
                 "reviews", filter=Q(reviews__is_approved=True), distinct=True
             ),
+            reserved_count=Count(
+                "reservations",
+                filter=Q(reservations__status="pending"),
+                distinct=True,
+            ),
         )
     )
     return qs.get()

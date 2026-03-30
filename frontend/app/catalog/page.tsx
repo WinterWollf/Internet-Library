@@ -9,6 +9,7 @@ import Footer from "@/components/footer"
 import CatalogFilters from "@/components/catalog-filters"
 import CatalogGrid from "@/components/catalog-grid"
 import { Skeleton } from "@/components/ui/skeleton"
+import AdminBlockedToast from "@/components/admin-blocked-toast"
 
 function FiltersSkeleton() {
   return (
@@ -40,6 +41,7 @@ function GridSkeleton() {
 export default function CatalogPage() {
   return (
     <div className="min-h-screen bg-background font-sans flex flex-col">
+      <Suspense><AdminBlockedToast /></Suspense>
       <Navbar />
       <main className="flex-1">
         {/* Page header */}

@@ -9,18 +9,20 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import { setTokens, clearTokens } from "./auth";
-import type { LoginResponse, RegisterPayload, UserProfile } from "./types";
+import type { LoginResponse, RegisterPayload, User } from "./types";
 
 // ── Context shape ─────────────────────────────────────────────────────────────
 
 interface AuthContextValue {
-  user: UserProfile | null;
+  user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isAdmin: () => boolean;
   login: (email: string, password: string) => Promise<LoginResponse>;
   logout: () => Promise<void>;
   register: (data: RegisterPayload) => Promise<void>;
   verifyMfa: (code: string) => Promise<void>;
+  mfaToken: string | null;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -71,8 +73,9 @@ async function throwOnError(res: Response) {
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
 
   // On mount: if access_token exists, hydrate user state from /auth/profile/
   useEffect(() => {
@@ -85,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       headers: { Authorization: `Bearer ${token}` },
       credentials: "include",
     })
-      .then((res) => (res.ok ? (res.json() as Promise<UserProfile>) : null))
+      .then((res) => (res.ok ? (res.json() as Promise<User>) : null))
       .then((data) => {
         if (data) setUser(data);
       })
@@ -105,7 +108,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       await throwOnError(res);
       const data = (await res.json()) as LoginResponse;
-      if (!data.mfa_required) {
+      if (data.mfa_required) {
+        setMfaToken(data.mfa_token ?? null);
+      } else {
         await setTokens(data.access, data.refresh);
         setUser(data.user);
       }
@@ -144,17 +149,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const verifyMfa = useCallback(async (code: string) => {
-    const res = await fetch(`${API}/auth/mfa/verify/`, {
+    const res = await fetch(`${API}/auth/mfa/login/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ mfa_token: mfaToken, code }),
       credentials: "include",
     });
     await throwOnError(res);
     const result = (await res.json()) as LoginResponse;
+    setMfaToken(null);
     await setTokens(result.access, result.refresh);
     setUser(result.user);
-  }, []);
+  }, [mfaToken]);
+
+  const isAdmin = useCallback(() => user?.role === "admin", [user]);
 
   return (
     <AuthContext.Provider
@@ -162,10 +170,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isLoading,
         isAuthenticated: !!user,
+        isAdmin,
         login,
         logout,
         register,
         verifyMfa,
+        mfaToken,
       }}
     >
       {children}

@@ -3,6 +3,7 @@ import io
 import urllib.parse
 
 import qrcode
+from django.core import signing
 from django_otp.plugins.otp_totp.models import TOTPDevice
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import generics, permissions, status
@@ -128,11 +129,17 @@ class LoginView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        if user.mfa_enabled:
+            mfa_token = signing.dumps(
+                {"user_id": user.id}, salt="mfa-login"
+            )
+            return Response({"mfa_required": True, "mfa_token": mfa_token})
+
         refresh = _token_pair(user)
         return Response({
             "access": str(refresh.access_token),
             "refresh": str(refresh),
-            "mfa_required": user.mfa_enabled,
+            "mfa_required": False,
             "user": UserProfileSerializer(user).data,
         })
 
@@ -286,6 +293,96 @@ class MfaDisableView(APIView):
         TOTPDevice.objects.filter(user=request.user).delete()
         services.disable_mfa(request.user)
         return Response({"detail": "MFA disabled."})
+
+
+@extend_schema(
+    tags=["Auth"],
+    summary="Complete login with MFA code",
+    description=(
+        "Second step of the MFA login flow. "
+        "Accepts the short-lived `mfa_token` returned by `POST /api/v1/auth/login/` "
+        "and a 6-digit TOTP `code`. "
+        "On success issues full JWT access and refresh tokens. "
+        "The token is valid for 5 minutes."
+    ),
+    auth=[],
+    responses={
+        200: OpenApiResponse(description="MFA verified — returns `access`, `refresh` and `user` profile."),
+        400: OpenApiResponse(description="Invalid or expired MFA token, or wrong TOTP code."),
+    },
+)
+class MfaLoginView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        mfa_token = request.data.get("mfa_token", "")
+        code = request.data.get("code", "")
+
+        try:
+            payload = signing.loads(mfa_token, salt="mfa-login", max_age=300)
+        except signing.SignatureExpired:
+            return Response(
+                {"error": "MFA session expired. Please log in again.", "code": "MFA_EXPIRED"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except signing.BadSignature:
+            return Response(
+                {"error": "Invalid MFA token.", "code": "MFA_INVALID_TOKEN"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user = User.objects.get(pk=payload["user_id"])
+        except User.DoesNotExist:
+            return Response(
+                {"error": "Invalid MFA token.", "code": "MFA_INVALID_TOKEN"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        device = TOTPDevice.objects.filter(user=user, confirmed=True).first()
+        if device is None or not device.verify_token(code):
+            return Response(
+                {"error": "Invalid code.", "code": "MFA_INVALID"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        refresh = _token_pair(user)
+        return Response({
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "user": UserProfileSerializer(user).data,
+        })
+
+
+# ── Self-service account actions ──────────────────────────────────────────────
+
+@extend_schema(
+    tags=["Auth"],
+    summary="Block own account",
+    description="Reader can request their own account to be blocked. Requires re-activation by an admin.",
+    responses={200: OpenApiResponse(description="Account blocked.")},
+)
+class BlockSelfView(APIView):
+    def post(self, request):
+        user = request.user
+        user.is_blocked = True
+        user.blocked_reason = "Self-blocked by user"
+        user.save(update_fields=["is_blocked", "blocked_reason"])
+        return Response({"detail": "Your account has been blocked."})
+
+
+@extend_schema(
+    tags=["Auth"],
+    summary="Delete own account",
+    description="Permanently deletes the authenticated user's account and all associated data.",
+    responses={
+        204: OpenApiResponse(description="Account deleted."),
+    },
+)
+class DeleteAccountView(APIView):
+    def delete(self, request):
+        request.user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ── Admin user management ─────────────────────────────────────────────────────

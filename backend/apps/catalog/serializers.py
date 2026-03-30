@@ -15,11 +15,17 @@ class ReviewSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Review
-        fields = ["id", "reader_name", "rating", "content", "is_approved", "created_at"]
+        fields = ["id", "reader", "reader_name", "rating", "content", "is_approved", "created_at"]
 
     def get_reader_name(self, obj):
         name = f"{obj.reader.first_name} {obj.reader.last_name}".strip()
         return name or obj.reader.email
+
+
+class ReviewCreateSerializer(serializers.Serializer):
+    book = serializers.IntegerField()
+    rating = serializers.IntegerField(min_value=1, max_value=5)
+    content = serializers.CharField()
 
 
 class BookListSerializer(serializers.ModelSerializer):
@@ -40,6 +46,7 @@ class BookDetailSerializer(serializers.ModelSerializer):
     available_copies_count = serializers.IntegerField(read_only=True, default=0)
     average_rating = serializers.FloatField(read_only=True, default=None, allow_null=True)
     reviews_count = serializers.IntegerField(read_only=True, default=0)
+    reserved_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = Book
@@ -47,7 +54,7 @@ class BookDetailSerializer(serializers.ModelSerializer):
             "id", "ol_id", "isbn", "title", "author", "description",
             "cover_url", "genres", "language", "year_published",
             "copies", "reviews", "average_rating", "reviews_count",
-            "available_copies_count", "created_at", "updated_at",
+            "available_copies_count", "reserved_count", "created_at", "updated_at",
         ]
 
     def get_reviews(self, obj):

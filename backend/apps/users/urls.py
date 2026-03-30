@@ -3,10 +3,13 @@ from drf_spectacular.utils import extend_schema
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.users.views import (
+    BlockSelfView,
     ChangePasswordView,
+    DeleteAccountView,
     LoginView,
     LogoutView,
     MfaDisableView,
+    MfaLoginView,
     MfaSetupView,
     MfaVerifyView,
     ProfileView,
@@ -32,4 +35,7 @@ urlpatterns = [
     path("mfa/setup/", MfaSetupView.as_view(), name="mfa_setup"),
     path("mfa/verify/", MfaVerifyView.as_view(), name="mfa_verify"),
     path("mfa/disable/", MfaDisableView.as_view(), name="mfa_disable"),
+    path("mfa/login/", MfaLoginView.as_view(), name="mfa_login"),
+    path("block-self/", BlockSelfView.as_view(), name="auth_block_self"),
+    path("delete-account/", DeleteAccountView.as_view(), name="auth_delete_account"),
 ]

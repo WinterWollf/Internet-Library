@@ -14,6 +14,7 @@ from apps.loans.views import (
 from apps.notifications.views import (
     AdminNotificationListView,
     AdminNotificationStatsView,
+    AdminSendReminderView,
 )
 from apps.users.views import (
     AdminBlockUserView,
@@ -49,6 +50,7 @@ urlpatterns = [
     # Notification management
     path("notifications/", AdminNotificationListView.as_view(), name="admin_notification_list"),
     path("notifications/stats/", AdminNotificationStatsView.as_view(), name="admin_notification_stats"),
+    path("notifications/send-reminder/", AdminSendReminderView.as_view(), name="admin_send_reminder"),
     # Statistics
     path("stats/dashboard/", AdminDashboardView.as_view(), name="admin_stats_dashboard"),
     path("stats/loans-per-month/", AdminLoansPerMonthView.as_view(), name="admin_stats_loans_per_month"),

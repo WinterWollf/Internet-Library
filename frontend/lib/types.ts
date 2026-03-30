@@ -12,13 +12,22 @@ export interface User {
   mfa_enabled: boolean;
 }
 
-export type UserProfile = User;
+export interface UserProfile extends User {
+  phone: string;
+  gender: "female" | "male" | "";
+  avatar_url: string;
+  email_reminders: boolean;
+  email_overdue: boolean;
+  email_reservation: boolean;
+  email_account_alerts: boolean;
+}
 
 export interface LoginResponse {
   access: string;
   refresh: string;
   user: User;
   mfa_required?: boolean;
+  mfa_token?: string;
 }
 
 export interface RegisterPayload {
@@ -67,13 +76,7 @@ export interface OpenLibraryBook {
   cover_url: string;
 }
 
-export interface BookDetail extends Book {
-  copies_available: number;
-  total_copies: number;
-  average_rating: number;
-  reviews_count: number;
-}
-
+/** Matches BookCopySerializer */
 export interface BookCopy {
   id: number;
   book: number;
@@ -81,6 +84,40 @@ export interface BookCopy {
   condition: "new" | "good" | "worn";
   is_available: boolean;
   qr_code: string | null;
+  created_at: string;
+}
+
+/** Matches ReviewSerializer — includes reader ID for "already reviewed" check */
+export interface BookReview {
+  id: number;
+  reader: number;
+  reader_name: string;
+  rating: number;
+  content: string;
+  is_approved: boolean;
+  created_at: string;
+}
+
+/** Matches BookDetailSerializer — returned by GET /api/v1/catalog/books/{id}/ */
+export interface BookDetail {
+  id: number;
+  ol_id: string | null;
+  isbn: string | null;
+  title: string;
+  author: string;
+  description: string;
+  cover_url: string;
+  genres: string[];
+  language: string;
+  year_published: number | null;
+  copies: BookCopy[];
+  reviews: BookReview[];
+  average_rating: number | null;
+  reviews_count: number;
+  available_copies_count: number;
+  reserved_count: number;
+  created_at: string;
+  updated_at: string;
 }
 
 // ── Loans ─────────────────────────────────────────────────────────────────────
@@ -152,10 +189,58 @@ export interface DashboardStats {
 }
 
 export interface ReaderStats {
-  active_loans: number;
-  overdue_loans: number;
-  total_borrowed: number;
-  unpaid_penalties: number;
+  active_loans_count: number;
+  overdue_loans_count: number;
+  total_books_read: number;
+  pending_reservations_count: number;
+  unpaid_penalties_total: string; // DecimalField serialized as string
+}
+
+// ── Dashboard response shapes (matching serializers exactly) ─────────────────
+
+export interface LoanBook {
+  id: number;
+  title: string;
+  author: string;
+  cover_url: string;
+}
+
+export interface LoanCopy {
+  id: number;
+  copy_number: number;
+  condition: "new" | "good" | "worn";
+  book: LoanBook;
+}
+
+export interface LoanItem {
+  id: number;
+  copy: LoanCopy;
+  borrowed_at: string;
+  due_date: string;
+  returned_at: string | null;
+  prolongation_count: number;
+  status: "active" | "returned" | "overdue";
+  days_remaining: number | null;
+  is_overdue: boolean;
+}
+
+export interface PenaltyItem {
+  id: number;
+  loan: { id: number; borrowed_at: string; due_date: string; status: string; book_title: string };
+  amount: string;
+  reason: "overdue" | "damage" | "loss";
+  paid_at: string | null;
+  waived_by: number | null;
+  created_at: string;
+  is_settled: boolean;
+}
+
+export interface ReservationItem {
+  id: number;
+  book: LoanBook;
+  reserved_at: string;
+  expires_at: string;
+  status: "pending" | "fulfilled" | "cancelled";
 }
 
 // ── Shared ────────────────────────────────────────────────────────────────────

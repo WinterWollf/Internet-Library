@@ -36,6 +36,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             "id", "email", "first_name", "last_name", "phone",
             "gender", "role", "mfa_enabled", "avatar_url",
+            "email_reminders", "email_overdue", "email_reservation", "email_account_alerts",
         ]
         read_only_fields = ["id", "email", "role", "mfa_enabled", "avatar_url"]
 

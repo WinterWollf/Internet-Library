@@ -1,5 +1,6 @@
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from drf_spectacular.types import OpenApiTypes
+from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -7,6 +8,8 @@ from rest_framework.views import APIView
 
 from apps.notifications.serializers import NotificationSerializer
 from apps.notifications.services import get_notification_stats, get_user_notifications
+from apps.notifications.tasks import send_notification_email as send_notification_email_task
+from apps.users.models import User
 from apps.users.permissions import IsAdmin
 
 
@@ -96,3 +99,38 @@ class AdminNotificationStatsView(APIView):
 
     def get(self, request):
         return Response(get_notification_stats())
+
+
+@extend_schema(
+    tags=["Notifications (Admin)"],
+    summary="Send overdue reminder to a user",
+    description="Queues an overdue notification email to the specified user via Celery.",
+    responses={
+        200: OpenApiResponse(description="Reminder queued."),
+        400: OpenApiResponse(description="user_id is required."),
+        404: OpenApiResponse(description="User not found."),
+    },
+)
+class AdminSendReminderView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request):
+        user_id = request.data.get("user_id")
+        if not user_id:
+            return Response(
+                {"error": "user_id is required.", "code": "MISSING_USER_ID"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found.", "code": "NOT_FOUND"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        send_notification_email_task.delay(
+            user.id,
+            "overdue",
+            {"first_name": user.first_name or user.email},
+        )
+        return Response({"detail": "Reminder queued."})

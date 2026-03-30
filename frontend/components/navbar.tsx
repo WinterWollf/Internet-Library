@@ -39,7 +39,7 @@ export default function Navbar() {
   const navLinks = [
     { label: "Home", href: "/" },
     { label: "Catalog", href: "/catalog" },
-    { label: "My loans", href: "/loans" },
+    { label: "My dashboard", href: "/dashboard" },
   ];
 
   const initials = user
