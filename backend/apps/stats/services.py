@@ -10,9 +10,24 @@ from apps.loans.models import Loan, Penalty, Reservation
 from apps.notifications.models import Notification
 from apps.users.models import User
 
+PUBLIC_STATS_CACHE_KEY = "stats_public"
 DASHBOARD_CACHE_KEY = "stats_dashboard"
 LOANS_PER_MONTH_CACHE_KEY_TPL = "stats_loans_per_month_{months}"
 GENRES_CACHE_KEY_TPL = "stats_most_borrowed_genres_{limit}"
+
+
+def get_public_stats() -> dict:
+    """Public-facing stats for the homepage hero. Cached for 5 minutes."""
+    cached = cache.get(PUBLIC_STATS_CACHE_KEY)
+    if cached is not None:
+        return cached
+    result = {
+        "total_books": Book.objects.count(),
+        "total_users": User.objects.count(),
+        "available_copies": BookCopy.objects.filter(is_available=True).count(),
+    }
+    cache.set(PUBLIC_STATS_CACHE_KEY, result, 300)
+    return result
 
 
 def get_dashboard_stats() -> dict:

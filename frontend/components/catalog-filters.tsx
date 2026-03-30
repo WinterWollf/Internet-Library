@@ -2,12 +2,12 @@
 
 // [v0 import] Component: CatalogFilters
 // Location: frontend/components/catalog-filters.tsx
-// Connect to: GET /api/v1/catalog/books/?search=&genre=&available=&language= — filter params passed via URL to CatalogGrid
+// Connect to: GET /api/v1/catalog/books/?search=&genre=&available=&min_rating= — filter params passed via URL to CatalogGrid
 // Auth: public
 
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Search } from "lucide-react"
+import { Search, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -29,8 +29,6 @@ const GENRES = [
   "Other",
 ]
 
-const LANGUAGES = ["English", "Polish", "German", "French"]
-
 export default function CatalogFilters() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -40,14 +38,16 @@ export default function CatalogFilters() {
   const [availability, setAvailability] = useState<"all" | "available">(
     searchParams.get("available") === "true" ? "available" : "all"
   )
-  const [language, setLanguage] = useState(searchParams.get("language") ?? "")
+  const [minRating, setMinRating] = useState<number>(
+    Number(searchParams.get("min_rating") ?? 0)
+  )
 
   // Sync local state when URL changes (e.g., browser back button)
   useEffect(() => {
     setSearch(searchParams.get("search") ?? "")
     setGenre(searchParams.get("genre") ?? "")
     setAvailability(searchParams.get("available") === "true" ? "available" : "all")
-    setLanguage(searchParams.get("language") ?? "")
+    setMinRating(Number(searchParams.get("min_rating") ?? 0))
   }, [searchParams])
 
   function applyFilters() {
@@ -55,7 +55,7 @@ export default function CatalogFilters() {
     if (search.trim()) params.set("search", search.trim())
     if (genre) params.set("genre", genre)
     if (availability === "available") params.set("available", "true")
-    if (language) params.set("language", language)
+    if (minRating > 0) params.set("min_rating", String(minRating))
     router.push(`/catalog?${params.toString()}`)
   }
 
@@ -63,7 +63,7 @@ export default function CatalogFilters() {
     setSearch("")
     setGenre("")
     setAvailability("all")
-    setLanguage("")
+    setMinRating(0)
     router.push("/catalog")
   }
 
@@ -144,30 +144,40 @@ export default function CatalogFilters() {
       {/* Divider */}
       <div className="h-px bg-slate-100" />
 
-      {/* Language */}
+      {/* Minimum rating */}
       <div className="flex flex-col gap-2">
         <Label className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-          Language
+          Minimum rating
         </Label>
-        <Select value={language} onValueChange={setLanguage}>
-          <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-700 h-9 text-sm focus:ring-primary/40">
-            <SelectValue placeholder="All languages" />
-          </SelectTrigger>
-          <SelectContent>
-            {LANGUAGES.map((lang) => (
-              <SelectItem key={lang} value={lang} className="text-sm">
-                {lang}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {language && (
-          <button
-            onClick={() => setLanguage("")}
-            className="text-xs text-slate-400 hover:text-slate-600 text-left"
-          >
-            Clear language
-          </button>
+        <div className="flex items-center gap-1">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              type="button"
+              onClick={() => setMinRating(minRating === star ? 0 : star)}
+              aria-label={`${star} star${star !== 1 ? "s" : ""} minimum`}
+              className="p-0.5 transition-transform hover:scale-110"
+            >
+              <Star
+                className={`w-5 h-5 transition-colors ${
+                  star <= minRating
+                    ? "fill-amber-400 text-amber-400"
+                    : "text-slate-300 hover:text-amber-300"
+                }`}
+              />
+            </button>
+          ))}
+          {minRating > 0 && (
+            <button
+              onClick={() => setMinRating(0)}
+              className="ml-1 text-xs text-slate-400 hover:text-slate-600"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        {minRating > 0 && (
+          <p className="text-xs text-slate-500">{minRating}+ stars</p>
         )}
       </div>
 

@@ -29,7 +29,7 @@ import { Textarea } from "@/components/ui/textarea"
 import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
 import { useAuth } from "@/lib/auth-context"
-import { apiGet, apiPost } from "@/lib/api"
+import { apiGet, apiPost, apiDelete } from "@/lib/api"
 import type { BookDetail, BookListItem, BookReview, PaginatedResponse } from "@/lib/types"
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1"
@@ -264,6 +264,8 @@ export default function BookDetailPage() {
 
   const [borrowing, setBorrowing] = useState(false)
   const [reserving, setReserving] = useState(false)
+  const [wishlisted, setWishlisted] = useState(false)
+  const [wishlistLoading, setWishlistLoading] = useState(false)
 
   const [showReviewForm, setShowReviewForm] = useState(false)
   const [reviewRating, setReviewRating] = useState(0)
@@ -319,6 +321,40 @@ export default function BookDetailPage() {
       })
       .catch(() => { /* no-op */ })
   }, [isAuthenticated, book])
+
+  // Check wishlist status
+  useEffect(() => {
+    if (!isAuthenticated || !book) return
+    apiGet<{ results: { book_id: number }[] }>("/catalog/wishlist/")
+      .then(data => {
+        setWishlisted(data.results.some(w => w.book_id === book.id))
+      })
+      .catch(() => { /* no-op */ })
+  }, [isAuthenticated, book])
+
+  async function handleWishlist() {
+    if (!book) return
+    if (!isAuthenticated) {
+      router.push(`/login?redirect=/catalog/${bookId}`)
+      return
+    }
+    setWishlistLoading(true)
+    try {
+      if (wishlisted) {
+        await apiDelete("/catalog/wishlist/", { book_id: book.id })
+        setWishlisted(false)
+        toast.success("Removed from wishlist")
+      } else {
+        await apiPost("/catalog/wishlist/", { book_id: book.id })
+        setWishlisted(true)
+        toast.success("Added to wishlist")
+      }
+    } catch {
+      toast.error("Failed to update wishlist")
+    } finally {
+      setWishlistLoading(false)
+    }
+  }
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
@@ -460,14 +496,20 @@ export default function BookDetailPage() {
                 {/* QR code */}
                 {firstAvailableCopy && (
                   <div className="flex flex-col items-center gap-1.5">
-                    {firstAvailableCopy.qr_code ? (
+                    {firstAvailableCopy.qr_code ? (() => {
+                      const olUrl = book.ol_id
+                        ? `https://openlibrary.org/works/${book.ol_id}`
+                        : book.isbn
+                        ? `https://openlibrary.org/isbn/${book.isbn}`
+                        : null
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={firstAvailableCopy.qr_code}
-                        alt="QR code for this copy"
-                        className="w-20 h-20 rounded-lg border border-slate-200 shadow-sm"
-                      />
-                    ) : (
+                      const qrImg = <img src={firstAvailableCopy.qr_code} alt="QR code for this copy" className="w-20 h-20 rounded-lg border border-slate-200 shadow-sm" />
+                      return olUrl ? (
+                        <a href={olUrl} target="_blank" rel="noopener noreferrer" className="block hover:opacity-75 transition-opacity" title="Open on Open Library">
+                          {qrImg}
+                        </a>
+                      ) : qrImg
+                    })() : (
                       <div className="flex flex-col items-center gap-1.5">
                         <div className="w-20 h-20 rounded-lg bg-slate-100 border border-slate-200 flex flex-col items-center justify-center gap-1">
                           <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
@@ -536,11 +578,16 @@ export default function BookDetailPage() {
                   )}
                   <Button
                     variant="outline"
-                    className="h-11 px-8 text-base font-semibold border-slate-300 text-slate-700 hover:bg-slate-50 bg-white"
-                    onClick={() => toast.info("Wishlist coming soon")}
+                    className={`h-11 px-8 text-base font-semibold border-slate-300 bg-white hover:bg-slate-50 ${wishlisted ? "text-rose-600 border-rose-300 hover:bg-rose-50" : "text-slate-700"}`}
+                    onClick={() => void handleWishlist()}
+                    disabled={wishlistLoading}
                   >
-                    <Heart className="w-4 h-4 mr-2 text-slate-500" />
-                    Add to wishlist
+                    {wishlistLoading ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Heart className={`w-4 h-4 mr-2 ${wishlisted ? "fill-rose-500 text-rose-500" : "text-slate-500"}`} />
+                    )}
+                    {wishlisted ? "In wishlist" : "Add to wishlist"}
                   </Button>
                 </div>
               </div>

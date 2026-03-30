@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.catalog.models import Book, BookCopy, Review
+from apps.catalog.models import Book, BookCopy, Review, Wishlist
 
 
 class BookCopySerializer(serializers.ModelSerializer):
@@ -26,6 +26,17 @@ class ReviewCreateSerializer(serializers.Serializer):
     book = serializers.IntegerField()
     rating = serializers.IntegerField(min_value=1, max_value=5)
     content = serializers.CharField()
+
+
+class WishlistSerializer(serializers.ModelSerializer):
+    book_id = serializers.IntegerField(source="book.id", read_only=True)
+    title = serializers.CharField(source="book.title", read_only=True)
+    author = serializers.CharField(source="book.author", read_only=True)
+    cover_url = serializers.URLField(source="book.cover_url", read_only=True)
+
+    class Meta:
+        model = Wishlist
+        fields = ["id", "book_id", "title", "author", "cover_url", "added_at"]
 
 
 class BookListSerializer(serializers.ModelSerializer):

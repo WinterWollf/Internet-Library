@@ -1,6 +1,6 @@
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from drf_spectacular.types import OpenApiTypes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -22,8 +22,26 @@ from apps.stats.services import (
     get_notification_stats,
     get_overdue_report,
     get_popular_books_report,
+    get_public_stats,
     get_reader_stats,
 )
+
+
+@extend_schema(
+    tags=["Stats"],
+    summary="Public library stats (homepage hero)",
+    description="Returns total_books, total_users, and available_copies. No authentication required.",
+    responses={200: {"type": "object", "properties": {
+        "total_books": {"type": "integer"},
+        "total_users": {"type": "integer"},
+        "available_copies": {"type": "integer"},
+    }}},
+)
+class PublicStatsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response(get_public_stats())
 
 
 @extend_schema(

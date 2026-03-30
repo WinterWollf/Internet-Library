@@ -7,8 +7,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.catalog.models import Book, BookCopy
-from apps.catalog.models import Review
+from apps.catalog.models import Book, BookCopy, Review, Wishlist
 from apps.catalog.serializers import (
     BookAdminSerializer,
     BookCopySerializer,
@@ -17,6 +16,7 @@ from apps.catalog.serializers import (
     OpenLibrarySearchResultSerializer,
     ReviewCreateSerializer,
     ReviewSerializer,
+    WishlistSerializer,
 )
 from apps.catalog.services import (
     get_book_detail,
@@ -234,6 +234,84 @@ class ReviewListCreateView(APIView):
             content=serializer.validated_data["content"],
         )
         return Response(ReviewSerializer(review).data, status=status.HTTP_201_CREATED)
+
+
+class AdminReviewListView(APIView):
+    """List all pending reviews for moderation."""
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        approved = request.query_params.get("approved")
+        qs = Review.objects.select_related("book", "reader").order_by("-created_at")
+        if approved == "false":
+            qs = qs.filter(is_approved=False)
+        elif approved == "true":
+            qs = qs.filter(is_approved=True)
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(qs, request)
+        return paginator.get_paginated_response(ReviewSerializer(page, many=True).data)
+
+
+class AdminReviewDetailView(APIView):
+    """Approve or delete a review."""
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def _get(self, pk):
+        try:
+            return Review.objects.get(pk=pk)
+        except Review.DoesNotExist:
+            raise NotFound({"error": "Review not found.", "code": "REVIEW_NOT_FOUND"})
+
+    def post(self, request, pk):
+        """Approve a review."""
+        review = self._get(pk)
+        review.is_approved = True
+        review.save(update_fields=["is_approved"])
+        return Response(ReviewSerializer(review).data)
+
+    def delete(self, request, pk):
+        review = self._get(pk)
+        review.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class WishlistView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        qs = Wishlist.objects.filter(reader=request.user).select_related("book")
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(qs, request)
+        return paginator.get_paginated_response(WishlistSerializer(page, many=True).data)
+
+    def post(self, request):
+        book_id = request.data.get("book_id")
+        if not book_id:
+            return Response(
+                {"error": "book_id is required.", "code": "MISSING_BOOK_ID"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            book = Book.objects.get(pk=book_id)
+        except Book.DoesNotExist:
+            raise NotFound({"error": "Book not found.", "code": "BOOK_NOT_FOUND"})
+        entry, created = Wishlist.objects.get_or_create(reader=request.user, book=book)
+        return Response(
+            WishlistSerializer(entry).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    def delete(self, request):
+        book_id = request.data.get("book_id")
+        if not book_id:
+            return Response(
+                {"error": "book_id is required.", "code": "MISSING_BOOK_ID"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        deleted, _ = Wishlist.objects.filter(reader=request.user, book_id=book_id).delete()
+        if not deleted:
+            raise NotFound({"error": "Wishlist entry not found.", "code": "NOT_FOUND"})
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ── Admin catalog views ───────────────────────────────────────────────────────

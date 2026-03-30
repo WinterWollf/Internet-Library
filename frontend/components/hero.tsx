@@ -2,23 +2,47 @@
 
 // [v0 import] Component: Hero
 // Location: frontend/components/hero.tsx
-// Connect to: GET /api/v1/catalog/books/?search= — search bar form submission
-// Mock data: badge "10,000+ titles available", stats row (10k+ Books, 2.4k Members, 98% Satisfaction) are hardcoded
+// Connect to: GET /api/v1/catalog/books/?ordering=-created_at&page_size=5 — real covers for book stack
+//             GET /api/v1/stats/public/ — real stats row
 // Auth: public
-// TODO: wire search bar to router.push("/catalog?search=<query>"); replace hardcoded stats with GET /api/v1/admin/stats/
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-function BookStack() {
-  const books = [
-    { rotate: "-rotate-12", color: "from-blue-700 to-blue-500", z: "z-0", width: "w-24" },
-    { rotate: "-rotate-6", color: "from-blue-600 to-blue-400", z: "z-10", width: "w-28" },
-    { rotate: "rotate-0", color: "from-blue-500 to-blue-300", z: "z-20", width: "w-32" },
-    { rotate: "rotate-6", color: "from-blue-600 to-blue-400", z: "z-10", width: "w-28" },
-    { rotate: "rotate-12", color: "from-blue-700 to-blue-500", z: "z-0", width: "w-24" },
-  ];
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
+interface BookListItem {
+  id: number;
+  cover_url: string;
+  title: string;
+}
+interface PublicStats {
+  total_books: number;
+  total_users: number;
+  available_copies: number;
+}
+
+const BOOK_LAYOUT = [
+  { rotate: "-rotate-12", z: "z-0",  width: 96,  height: 140 },
+  { rotate: "-rotate-6",  z: "z-10", width: 112, height: 150 },
+  { rotate: "rotate-0",   z: "z-20", width: 128, height: 160 },
+  { rotate: "rotate-6",   z: "z-10", width: 112, height: 150 },
+  { rotate: "rotate-12",  z: "z-0",  width: 96,  height: 140 },
+];
+
+const GRADIENTS = [
+  "from-blue-700 to-blue-500",
+  "from-blue-600 to-blue-400",
+  "from-blue-500 to-blue-300",
+  "from-blue-600 to-blue-400",
+  "from-blue-700 to-blue-500",
+];
+
+function BookStack({ covers }: { covers: string[] }) {
   return (
     <div className="relative flex items-center justify-center h-80 lg:h-96 select-none" aria-hidden="true">
       {/* Subtle radial glow */}
@@ -38,29 +62,43 @@ function BookStack() {
 
       {/* Book stack */}
       <div className="relative flex items-end justify-center gap-1">
-        {books.map((book, i) => (
-          <div
-            key={i}
-            className={`relative ${book.rotate} ${book.z} transition-transform duration-300`}
-            style={{ marginLeft: i === 0 ? 0 : "-1.5rem" }}
-          >
+        {BOOK_LAYOUT.map((book, i) => {
+          const cover = covers[i];
+          return (
             <div
-              className={`${book.width} bg-gradient-to-b ${book.color} rounded-sm shadow-2xl`}
-              style={{ height: `${140 + (i === 2 ? 20 : i === 1 || i === 3 ? 10 : 0)}px` }}
+              key={i}
+              className={`relative ${book.rotate} ${book.z} transition-transform duration-300`}
+              style={{ marginLeft: i === 0 ? 0 : "-1.5rem" }}
             >
-              {/* Book spine lines */}
-              <div className="h-full flex flex-col justify-between p-2 opacity-40">
-                <div className="h-0.5 bg-white/60 rounded" />
-                <div className="space-y-1">
-                  <div className="h-0.5 bg-white/40 rounded" />
-                  <div className="h-0.5 bg-white/40 rounded w-3/4" />
-                </div>
+              <div
+                className="rounded-sm shadow-2xl overflow-hidden"
+                style={{ width: book.width, height: book.height }}
+              >
+                {cover ? (
+                  <Image
+                    src={cover}
+                    alt=""
+                    width={book.width}
+                    height={book.height}
+                    className="object-cover w-full h-full"
+                    unoptimized
+                  />
+                ) : (
+                  <div className={`w-full h-full bg-gradient-to-b ${GRADIENTS[i]}`}>
+                    <div className="h-full flex flex-col justify-between p-2 opacity-40">
+                      <div className="h-0.5 bg-white/60 rounded" />
+                      <div className="space-y-1">
+                        <div className="h-0.5 bg-white/40 rounded" />
+                        <div className="h-0.5 bg-white/40 rounded w-3/4" />
+                      </div>
+                    </div>
+                    <div className="absolute top-0 left-0 w-1/4 h-full bg-white/5 rounded-l-sm" />
+                  </div>
+                )}
               </div>
-              {/* Shine */}
-              <div className="absolute top-0 left-0 w-1/4 h-full bg-white/5 rounded-l-sm" />
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Floating accent dots */}
@@ -73,6 +111,44 @@ function BookStack() {
 }
 
 export default function Hero() {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+  const [covers, setCovers] = useState<string[]>([]);
+  const [stats, setStats] = useState<PublicStats | null>(null);
+
+  // Fetch real book covers
+  useEffect(() => {
+    fetch(`${API}/catalog/books/?ordering=-created_at&page_size=5`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data) return;
+        const results = (data.results ?? []) as BookListItem[];
+        setCovers(results.map((b) => b.cover_url));
+      })
+      .catch(() => {/* keep placeholder gradients */});
+  }, []);
+
+  // Fetch public stats
+  useEffect(() => {
+    fetch(`${API}/stats/public/`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setStats(data as PublicStats); })
+      .catch(() => {/* fall back to "—" */});
+  }, []);
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const q = query.trim();
+    if (q) {
+      router.push(`/catalog?search=${encodeURIComponent(q)}`);
+    } else {
+      router.push("/catalog");
+    }
+  }
+
+  const fmt = (n: number) =>
+    n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : String(n);
+
   return (
     <section className="relative overflow-hidden min-h-[calc(100vh-4rem)] flex items-center">
       {/* Background subtle gradient */}
@@ -84,7 +160,9 @@ export default function Hero() {
           <div className="flex flex-col gap-6 lg:gap-8">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-blue-600/30 bg-blue-600/10 w-fit">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-              <span className="text-xs text-blue-400 font-medium tracking-wide">10,000+ titles available</span>
+              <span className="text-xs text-blue-400 font-medium tracking-wide">
+                {stats ? `${stats.total_books.toLocaleString()} titles available` : "Titles available"}
+              </span>
             </div>
 
             <div className="space-y-4">
@@ -99,42 +177,50 @@ export default function Hero() {
             </div>
 
             {/* Search bar */}
-            <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-[90%]">
+            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2 w-full lg:w-[90%]">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                 <Input
                   className="pl-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground h-11 focus-visible:ring-primary focus-visible:border-primary w-full"
                   placeholder="Search by title, author or ISBN..."
                   type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
                 />
               </div>
-              <Button className="h-11 px-6 bg-primary text-primary-foreground hover:bg-primary/90 font-medium shrink-0">
+              <Button type="submit" className="h-11 px-6 bg-primary text-primary-foreground hover:bg-primary/90 font-medium shrink-0">
                 Search
               </Button>
-            </div>
+            </form>
 
             {/* Stats row */}
             <div className="flex items-center gap-6 text-sm text-muted-foreground">
               <div className="flex flex-col gap-0.5">
-                <span className="text-foreground font-semibold text-base">10k+</span>
+                <span className="text-foreground font-semibold text-base">
+                  {stats ? fmt(stats.total_books) : "—"}
+                </span>
                 <span>Books</span>
               </div>
               <div className="w-px h-8 bg-border" />
               <div className="flex flex-col gap-0.5">
-                <span className="text-foreground font-semibold text-base">2.4k</span>
+                <span className="text-foreground font-semibold text-base">
+                  {stats ? fmt(stats.total_users) : "—"}
+                </span>
                 <span>Members</span>
               </div>
               <div className="w-px h-8 bg-border" />
               <div className="flex flex-col gap-0.5">
-                <span className="text-foreground font-semibold text-base">98%</span>
-                <span>Satisfaction</span>
+                <span className="text-foreground font-semibold text-base">
+                  {stats ? fmt(stats.available_copies) : "—"}
+                </span>
+                <span>Available copies</span>
               </div>
             </div>
           </div>
 
           {/* Right: decorative books */}
           <div className="hidden lg:flex items-center justify-center">
-            <BookStack />
+            <BookStack covers={covers} />
           </div>
         </div>
       </div>

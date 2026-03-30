@@ -5,6 +5,8 @@ from apps.catalog.views import (
     AdminBookListView,
     AdminCopyDetailView,
     AdminCopyListView,
+    AdminReviewDetailView,
+    AdminReviewListView,
 )
 from apps.loans.views import (
     AdminLoanListView,
@@ -43,6 +45,8 @@ urlpatterns = [
     path("catalog/books/<int:pk>/", AdminBookDetailView.as_view(), name="admin_book_detail"),
     path("catalog/copies/", AdminCopyListView.as_view(), name="admin_copy_list"),
     path("catalog/copies/<int:pk>/", AdminCopyDetailView.as_view(), name="admin_copy_detail"),
+    path("catalog/reviews/", AdminReviewListView.as_view(), name="admin_review_list"),
+    path("catalog/reviews/<int:pk>/", AdminReviewDetailView.as_view(), name="admin_review_detail"),
     # Loan management
     path("loans/", AdminLoanListView.as_view(), name="admin_loan_list"),
     path("loans/overdue/", AdminOverdueLoansView.as_view(), name="admin_overdue_loans"),

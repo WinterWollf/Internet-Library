@@ -19,7 +19,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { toast } from "sonner"
 import {
-  BookOpen, BookMarked, Clock, AlertCircle, ChevronDown, Info, Loader2, RefreshCw,
+  BookOpen, BookMarked, Clock, AlertCircle, ChevronDown, Info, Loader2, RefreshCw, Heart, Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -88,24 +88,24 @@ function MiniCover({ id, coverUrl, title }: { id: number; coverUrl: string; titl
 function DaysChip({ days }: { days: number }) {
   if (days < 0)
     return (
-      <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+      <span className="inline-flex items-center gap-1 text-sm font-semibold text-red-600 bg-red-50 px-3 py-1 rounded-full">
         {Math.abs(days)}d overdue
       </span>
     )
   if (days === 0)
     return (
-      <span className="inline-flex text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+      <span className="inline-flex items-center text-sm font-semibold text-red-600 bg-red-50 px-3 py-1 rounded-full">
         Due today
       </span>
     )
   if (days <= 3)
     return (
-      <span className="inline-flex text-xs font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
+      <span className="inline-flex items-center text-sm font-semibold text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
         {days}d left
       </span>
     )
   return (
-    <span className="inline-flex text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+    <span className="inline-flex items-center text-sm font-semibold text-green-700 bg-green-50 px-3 py-1 rounded-full">
       {days}d left
     </span>
   )
@@ -655,6 +655,84 @@ function LoanHistorySection({
   )
 }
 
+// ── Wishlist Section ──────────────────────────────────────────────────────────
+
+interface WishlistEntry {
+  id: number
+  book_id: number
+  title: string
+  author: string
+  cover_url: string
+  added_at: string
+}
+
+function WishlistSection() {
+  const [items, setItems] = useState<WishlistEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [removing, setRemoving] = useState<number | null>(null)
+
+  useEffect(() => {
+    apiGet<{ results: WishlistEntry[] }>("/catalog/wishlist/")
+      .then(data => setItems(data.results))
+      .catch(() => {/* no-op */})
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function handleRemove(entry: WishlistEntry) {
+    setRemoving(entry.id)
+    try {
+      await apiDelete("/catalog/wishlist/", { book_id: entry.book_id })
+      setItems(prev => prev.filter(w => w.id !== entry.id))
+      toast.success("Removed from wishlist")
+    } catch {
+      toast.error("Failed to remove from wishlist")
+    } finally {
+      setRemoving(null)
+    }
+  }
+
+  return (
+    <section aria-labelledby="wishlist-heading">
+      <h2 id="wishlist-heading" className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+        <Heart className="w-5 h-5 text-rose-500 fill-rose-500" />
+        Wishlist
+      </h2>
+      {loading ? (
+        <SectionSkeleton rows={2} />
+      ) : items.length === 0 ? (
+        <p className="text-sm text-slate-400 italic">Your wishlist is empty. Browse the catalog and save books you want to read.</p>
+      ) : (
+        <Card className="border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="divide-y divide-slate-100">
+            {items.map(entry => (
+              <div key={entry.id} className="flex items-center gap-4 px-5 py-3.5">
+                <MiniCover id={entry.book_id} coverUrl={entry.cover_url} title={entry.title} />
+                <div className="flex-1 min-w-0">
+                  <Link href={`/catalog/${entry.book_id}`} className="text-sm font-medium text-slate-900 hover:text-primary transition-colors line-clamp-1">
+                    {entry.title}
+                  </Link>
+                  <p className="text-xs text-slate-500 mt-0.5">{entry.author}</p>
+                </div>
+                <button
+                  onClick={() => void handleRemove(entry)}
+                  disabled={removing === entry.id}
+                  className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors disabled:opacity-40"
+                  aria-label="Remove from wishlist"
+                >
+                  {removing === entry.id
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <Trash2 className="w-4 h-4" />
+                  }
+                </button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </section>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -889,6 +967,9 @@ export default function DashboardPage() {
             onPay={handlePay}
             paying={paying}
           />
+
+          {/* Wishlist */}
+          <WishlistSection />
 
           {/* Loan History */}
           <LoanHistorySection

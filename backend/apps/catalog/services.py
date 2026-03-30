@@ -46,6 +46,12 @@ def get_books(filters: dict):
         ),
     )
 
+    if min_rating := filters.get("min_rating"):
+        try:
+            qs = qs.filter(average_rating__gte=float(min_rating))
+        except (ValueError, TypeError):
+            pass
+
     # Preserve stable ordering after annotation (annotation drops model Meta ordering)
     if not (filters.get("search") or filters.get("q")):
         qs = qs.order_by("-created_at")
@@ -252,7 +258,13 @@ def generate_qr_code(copy_id: int) -> None:
 
     copy = BookCopy.objects.get(pk=copy_id)
 
-    qr_content = f"book:{copy.book_id}:copy:{copy.pk}"
+    book = copy.book
+    if book.ol_id:
+        qr_content = f"https://openlibrary.org/works/{book.ol_id}"
+    elif book.isbn:
+        qr_content = f"https://openlibrary.org/isbn/{book.isbn}"
+    else:
+        qr_content = f"book:{copy.book_id}:copy:{copy.pk}"
     img = qrcode.make(qr_content)
 
     qr_dir = os.path.join(settings.MEDIA_ROOT, "qr_codes")

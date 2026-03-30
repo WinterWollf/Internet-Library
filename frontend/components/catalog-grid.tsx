@@ -266,12 +266,12 @@ export default function CatalogGrid() {
     const search = searchParams.get("search")
     const genre = searchParams.get("genre")
     const available = searchParams.get("available")
-    const language = searchParams.get("language")
+    const minRating = searchParams.get("min_rating")
 
     if (search) params.set("search", search)
     if (genre) params.set("genre", genre)
     if (available) params.set("available", available)
-    if (language) params.set("language", language)
+    if (minRating) params.set("min_rating", minRating)
     params.set("page", page.toString())
 
     setLoading(true)

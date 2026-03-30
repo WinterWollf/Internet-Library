@@ -48,6 +48,23 @@ class BookCopy(models.Model):
         return f"{self.book.title} — copy #{self.copy_number}"
 
 
+class Wishlist(models.Model):
+    reader = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="wishlist",
+    )
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="wishlisted_by")
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-added_at"]
+        unique_together = [["reader", "book"]]
+
+    def __str__(self):
+        return f"{self.reader} → {self.book}"
+
+
 class Review(models.Model):
     book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="reviews")
     reader = models.ForeignKey(

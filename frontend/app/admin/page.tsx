@@ -935,6 +935,135 @@ function OpenLibraryImport() {
 }
 
 // ---------------------------------------------------------------------------
+// Pending Reviews Section
+// ---------------------------------------------------------------------------
+interface AdminReview {
+  id: number
+  reader: number
+  reader_name: string
+  rating: number
+  content: string
+  is_approved: boolean
+  created_at: string
+  book?: { id: number; title: string } | null
+}
+
+function StarRow({ rating }: { rating: number }) {
+  return (
+    <span className="inline-flex gap-0.5 text-amber-400">
+      {[1,2,3,4,5].map(i => (
+        <span key={i} className={i <= rating ? "text-amber-400" : "text-slate-200"}>★</span>
+      ))}
+    </span>
+  )
+}
+
+function PendingReviewsSection() {
+  const [reviews, setReviews] = useState<AdminReview[]>([])
+  const [loading, setLoading] = useState(true)
+  const [acting, setActing] = useState<number | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await apiFetch<{ results: AdminReview[] }>("/admin/catalog/reviews/?approved=false")
+      setReviews(data.results)
+    } catch {
+      toast.error("Failed to load pending reviews")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { void load() }, [load])
+
+  async function approve(id: number) {
+    setActing(id)
+    try {
+      await apiFetch(`/admin/catalog/reviews/${id}/`, { method: "POST" })
+      setReviews(prev => prev.filter(r => r.id !== id))
+      toast.success("Review approved")
+    } catch {
+      toast.error("Failed to approve review")
+    } finally {
+      setActing(null)
+    }
+  }
+
+  async function remove(id: number) {
+    setActing(id)
+    try {
+      await apiFetch(`/admin/catalog/reviews/${id}/`, { method: "DELETE" })
+      setReviews(prev => prev.filter(r => r.id !== id))
+      toast.success("Review deleted")
+    } catch {
+      toast.error("Failed to delete review")
+    } finally {
+      setActing(null)
+    }
+  }
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+          <Shield className="w-5 h-5 text-amber-500" />
+          Pending Reviews
+          {!loading && reviews.length > 0 && (
+            <Badge className="ml-1 bg-amber-100 text-amber-700 border-amber-200">{reviews.length}</Badge>
+          )}
+        </h2>
+      </div>
+      {loading ? (
+        <div className="flex flex-col gap-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}</div>
+      ) : reviews.length === 0 ? (
+        <Card className="border-slate-200 rounded-xl">
+          <CardContent className="p-8 text-center text-slate-400 text-sm">No pending reviews.</CardContent>
+        </Card>
+      ) : (
+        <Card className="border-slate-200 rounded-xl overflow-hidden">
+          <div className="divide-y divide-slate-100">
+            {reviews.map(review => (
+              <div key={review.id} className="p-4 flex flex-col gap-2">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <StarRow rating={review.rating} />
+                      <span className="text-xs text-slate-500">by {review.reader_name}</span>
+                      <span className="text-xs text-slate-400">· {new Date(review.created_at).toLocaleDateString("en-GB")}</span>
+                    </div>
+                    <p className="text-sm text-slate-700 line-clamp-2">{review.content}</p>
+                  </div>
+                  <div className="shrink-0 flex gap-2">
+                    <Button
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white text-xs h-8"
+                      onClick={() => void approve(review.id)}
+                      disabled={acting === review.id}
+                    >
+                      {acting === review.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Approve"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-red-200 text-red-600 hover:bg-red-50 text-xs h-8"
+                      onClick={() => void remove(review.id)}
+                      disabled={acting === review.id}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function AdminPage() {
@@ -1007,6 +1136,7 @@ export default function AdminPage() {
           <UserManagement onAction={fetchStats} />
           <RecentLoansSection />
           <FlaggedAccountsSection onAction={fetchStats} />
+          <PendingReviewsSection />
           <OpenLibraryImport />
         </div>
       </main>
