@@ -17,11 +17,12 @@ import Image from "next/image"
 import Link from "next/link"
 import { toast } from "sonner"
 import {
-  BookOpen, Star, Heart, ChevronRight, Info, Loader2, QrCode, Plus,
+  BookOpen, Star, Heart, ChevronRight, Info, Loader2, QrCode, Plus, CheckCircle2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -263,6 +264,8 @@ export default function BookDetailPage() {
   const [reservationDone, setReservationDone] = useState(false)
 
   const [borrowing, setBorrowing] = useState(false)
+  const [borrowSuccess, setBorrowSuccess] = useState(false)
+  const [borrowedDueDate, setBorrowedDueDate] = useState<string | null>(null)
   const [reserving, setReserving] = useState(false)
   const [wishlisted, setWishlisted] = useState(false)
   const [wishlistLoading, setWishlistLoading] = useState(false)
@@ -277,6 +280,14 @@ export default function BookDetailPage() {
   const [copyCount, setCopyCount] = useState(1)
   const [copyCondition, setCopyCondition] = useState<"new" | "good" | "worn">("good")
   const [addingCopies, setAddingCopies] = useState(false)
+
+  // Auto-close borrow success modal after 10 s and go to catalog
+  useEffect(() => {
+    if (!borrowSuccess) return
+    const t = setTimeout(() => { setBorrowSuccess(false); router.push("/catalog") }, 10000)
+    return () => clearTimeout(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [borrowSuccess])
 
   // ── Fetch book detail ──────────────────────────────────────────────────────
 
@@ -364,9 +375,9 @@ export default function BookDetailPage() {
     if (!copy) return
     setBorrowing(true)
     try {
-      await apiPost("/loans/borrow/", { copy_id: copy.id })
-      toast.success("Book borrowed successfully!")
-      router.push("/loans")
+      const loan = await apiPost<{ due_date: string }>("/loans/borrow/", { copy_id: copy.id })
+      setBorrowedDueDate(loan.due_date)
+      setBorrowSuccess(true)
     } catch (err: unknown) {
       const msg = (err as Error).message
       toast.error(msg ?? "Failed to borrow book")
@@ -474,8 +485,45 @@ export default function BookDetailPage() {
     { label: "Copies available", value: `${book.available_copies_count} / ${book.copies.length}` },
   ].filter(Boolean) as { label: string; value: string }[]
 
+  const formattedDueDate = borrowedDueDate
+    ? new Date(borrowedDueDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+    : ""
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <Dialog open={borrowSuccess} onOpenChange={setBorrowSuccess}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-8 h-8 text-green-500 shrink-0" />
+              <DialogTitle className="text-lg font-semibold text-slate-900">
+                Book borrowed successfully!
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+          <p className="text-sm text-slate-600 mt-1">
+            <span className="font-medium text-slate-900">{book.title}</span> has been added to your
+            active loans. Return it before{" "}
+            <span className="font-medium text-slate-900">{formattedDueDate}</span>.
+          </p>
+          <div className="flex gap-3 mt-4">
+            <Button
+              className="flex-1 bg-blue-600 text-white hover:bg-blue-700"
+              onClick={() => { setBorrowSuccess(false); router.push("/dashboard") }}
+            >
+              Go to My Dashboard
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1 border-slate-300 text-slate-600"
+              onClick={() => { setBorrowSuccess(false); router.push("/catalog") }}
+            >
+              Continue browsing
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Navbar />
       <Breadcrumb title={book.title} />
 
@@ -496,14 +544,14 @@ export default function BookDetailPage() {
                 {/* QR code */}
                 {firstAvailableCopy && (
                   <div className="flex flex-col items-center gap-1.5">
-                    {firstAvailableCopy.qr_code ? (() => {
+                    {firstAvailableCopy.qr_code_url ? (() => {
                       const olUrl = book.ol_id
                         ? `https://openlibrary.org/works/${book.ol_id}`
                         : book.isbn
                         ? `https://openlibrary.org/isbn/${book.isbn}`
                         : null
                       // eslint-disable-next-line @next/next/no-img-element
-                      const qrImg = <img src={firstAvailableCopy.qr_code} alt="QR code for this copy" className="w-20 h-20 rounded-lg border border-slate-200 shadow-sm" />
+                      const qrImg = <img src={firstAvailableCopy.qr_code_url} alt="QR code for this copy" className="w-20 h-20 rounded-lg border border-slate-200 shadow-sm" />
                       return olUrl ? (
                         <a href={olUrl} target="_blank" rel="noopener noreferrer" className="block hover:opacity-75 transition-opacity" title="Open on Open Library">
                           {qrImg}
@@ -517,7 +565,7 @@ export default function BookDetailPage() {
                         <p className="text-xs text-slate-400 text-center">QR generating…</p>
                       </div>
                     )}
-                    {firstAvailableCopy.qr_code && (
+                    {firstAvailableCopy.qr_code_url && (
                       <p className="text-xs text-slate-400">Copy #{firstAvailableCopy.copy_number}</p>
                     )}
                   </div>

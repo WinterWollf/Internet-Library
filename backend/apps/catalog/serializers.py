@@ -4,10 +4,19 @@ from apps.catalog.models import Book, BookCopy, Review, Wishlist
 
 
 class BookCopySerializer(serializers.ModelSerializer):
+    qr_code_url = serializers.SerializerMethodField()
+
     class Meta:
         model = BookCopy
-        fields = ["id", "book", "copy_number", "condition", "is_available", "qr_code", "created_at"]
+        fields = ["id", "book", "copy_number", "condition", "is_available", "qr_code", "qr_code_url", "created_at"]
         read_only_fields = ["id", "created_at"]
+
+    def get_qr_code_url(self, obj):
+        if obj.qr_code:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(obj.qr_code.url)
+        return None
 
 
 class ReviewSerializer(serializers.ModelSerializer):

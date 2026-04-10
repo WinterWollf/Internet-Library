@@ -1,5 +1,6 @@
 import os
 import re
+from io import BytesIO
 
 import requests
 from django.conf import settings
@@ -255,24 +256,31 @@ def search_open_library(query: str) -> list:
 def generate_qr_code(copy_id: int) -> None:
     """Generate a PNG QR code for a BookCopy and persist it to media storage."""
     import qrcode  # imported here to keep top-level imports light
+    from django.core.files.base import ContentFile
 
-    copy = BookCopy.objects.get(pk=copy_id)
-
+    copy = BookCopy.objects.select_related("book").get(pk=copy_id)
     book = copy.book
-    if book.ol_id:
-        qr_content = f"https://openlibrary.org/works/{book.ol_id}"
-    elif book.isbn:
-        qr_content = f"https://openlibrary.org/isbn/{book.isbn}"
-    else:
-        qr_content = f"book:{copy.book_id}:copy:{copy.pk}"
-    img = qrcode.make(qr_content)
 
-    qr_dir = os.path.join(settings.MEDIA_ROOT, "qr_codes")
-    os.makedirs(qr_dir, exist_ok=True)
+    if book.isbn:
+        url = f"https://openlibrary.org/isbn/{book.isbn}"
+    elif book.ol_id:
+        url = f"https://openlibrary.org/works/{book.ol_id}"
+    else:
+        url = f"https://openlibrary.org/search?q={book.title}"
+
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(url)
+    qr.make(fit=True)
+
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffer = BytesIO()
+    img.save(buffer, format="PNG")
+    buffer.seek(0)
 
     filename = f"copy_{copy_id}.png"
-    filepath = os.path.join(qr_dir, filename)
-    img.save(filepath)
-
-    copy.qr_code = f"qr_codes/{filename}"
-    copy.save(update_fields=["qr_code"])
+    copy.qr_code.save(filename, ContentFile(buffer.read()), save=True)

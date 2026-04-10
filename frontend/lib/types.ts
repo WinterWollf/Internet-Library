@@ -84,6 +84,7 @@ export interface BookCopy {
   condition: "new" | "good" | "worn";
   is_available: boolean;
   qr_code: string | null;
+  qr_code_url: string | null;
   created_at: string;
 }
 
