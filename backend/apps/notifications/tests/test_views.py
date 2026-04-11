@@ -1,18 +1,21 @@
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
-import pytest
 from django.utils import timezone
+
+import pytest
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.notifications.models import Notification
 from apps.notifications.services import send_notification_email
-from apps.notifications.tasks import send_notification_email as send_notification_email_task
+from apps.notifications.tasks import (
+    send_notification_email as send_notification_email_task,
+)
 from apps.users.models import User
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def api_client():
@@ -57,6 +60,7 @@ def admin_client(api_client, admin_user):
 
 # ── Service: send_notification_email ─────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestSendNotificationEmail:
     def test_creates_notification_record(self, reader):
@@ -64,7 +68,12 @@ class TestSendNotificationEmail:
             notif = send_notification_email(
                 reader.pk,
                 "reminder",
-                {"book_title": "Dune", "book_author": "Frank Herbert", "days": 3, "due_date": "2026-04-01"},
+                {
+                    "book_title": "Dune",
+                    "book_author": "Frank Herbert",
+                    "days": 3,
+                    "due_date": "2026-04-01",
+                },
             )
         assert notif.user == reader
         assert notif.type == "reminder"
@@ -76,18 +85,30 @@ class TestSendNotificationEmail:
             notif = send_notification_email(
                 reader.pk,
                 "overdue",
-                {"book_title": "Dune", "due_date": "2026-03-01", "days_overdue": 5, "penalty_amount": "2.50"},
+                {
+                    "book_title": "Dune",
+                    "due_date": "2026-03-01",
+                    "days_overdue": 5,
+                    "penalty_amount": "2.50",
+                },
             )
         assert notif.is_sent is True
         assert notif.error_message == ""
 
     def test_stores_error_on_failure(self, reader):
-        with patch("apps.notifications.services.send_mail", side_effect=Exception("SMTP down")):
+        with patch(
+            "apps.notifications.services.send_mail", side_effect=Exception("SMTP down")
+        ):
             with pytest.raises(Exception, match="SMTP down"):
                 send_notification_email(
                     reader.pk,
                     "reminder",
-                    {"book_title": "Dune", "book_author": "F.H.", "days": 3, "due_date": "2026-04-01"},
+                    {
+                        "book_title": "Dune",
+                        "book_author": "F.H.",
+                        "days": 3,
+                        "due_date": "2026-04-01",
+                    },
                 )
         notif = Notification.objects.filter(user=reader).first()
         assert notif is not None
@@ -100,12 +121,22 @@ class TestSendNotificationEmail:
             send_notification_email(
                 reader.pk,
                 "reminder",
-                {"book_title": "Dune", "book_author": "F.H.", "days": 3, "due_date": "2026-04-01"},
+                {
+                    "book_title": "Dune",
+                    "book_author": "F.H.",
+                    "days": 3,
+                    "due_date": "2026-04-01",
+                },
             )
             send_notification_email(
                 reader.pk,
                 "reminder",
-                {"book_title": "Dune", "book_author": "F.H.", "days": 3, "due_date": "2026-04-01"},
+                {
+                    "book_title": "Dune",
+                    "book_author": "F.H.",
+                    "days": 3,
+                    "due_date": "2026-04-01",
+                },
             )
         assert mock_send.call_count == 1
         assert Notification.objects.filter(user=reader, type="reminder").count() == 1
@@ -117,21 +148,42 @@ class TestSendNotificationEmail:
         old.sent_at = timezone.now() - timedelta(hours=25)
         old.save()
         # Manually update to bypass auto_now_add
-        Notification.objects.filter(pk=old.pk).update(sent_at=timezone.now() - timedelta(hours=25))
+        Notification.objects.filter(pk=old.pk).update(
+            sent_at=timezone.now() - timedelta(hours=25)
+        )
 
         with patch("apps.notifications.services.send_mail"):
             send_notification_email(
                 reader.pk,
                 "reminder",
-                {"book_title": "Dune", "book_author": "F.H.", "days": 3, "due_date": "2026-04-01"},
+                {
+                    "book_title": "Dune",
+                    "book_author": "F.H.",
+                    "days": 3,
+                    "due_date": "2026-04-01",
+                },
             )
         assert Notification.objects.filter(user=reader, type="reminder").count() == 2
 
     def test_all_notification_types_render(self, reader):
         contexts = {
-            "reminder": {"book_title": "B", "book_author": "A", "days": 1, "due_date": "2026-04-01"},
-            "overdue": {"book_title": "B", "due_date": "2026-03-01", "days_overdue": 3, "penalty_amount": "1.50"},
-            "reservation_ready": {"book_title": "B", "book_author": "A", "reservation_expires": "2026-04-07"},
+            "reminder": {
+                "book_title": "B",
+                "book_author": "A",
+                "days": 1,
+                "due_date": "2026-04-01",
+            },
+            "overdue": {
+                "book_title": "B",
+                "due_date": "2026-03-01",
+                "days_overdue": 3,
+                "penalty_amount": "1.50",
+            },
+            "reservation_ready": {
+                "book_title": "B",
+                "book_author": "A",
+                "reservation_expires": "2026-04-07",
+            },
             "account_blocked": {"reason": "Overdue books", "overdue_books": ["Book 1"]},
         }
         with patch("apps.notifications.services.send_mail"):
@@ -144,25 +196,38 @@ class TestSendNotificationEmail:
 
 # ── Celery task retry logic ───────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestSendNotificationEmailTask:
     def test_task_calls_service(self, reader):
         with patch("apps.notifications.services.send_notification_email") as mock_svc:
             mock_svc.return_value = MagicMock()
             send_notification_email_task.apply(
-                args=[reader.pk, "reminder", {"book_title": "B", "book_author": "A", "days": 3, "due_date": "2026-04-01"}]
+                args=[
+                    reader.pk,
+                    "reminder",
+                    {
+                        "book_title": "B",
+                        "book_author": "A",
+                        "days": 3,
+                        "due_date": "2026-04-01",
+                    },
+                ]
             )
         mock_svc.assert_called_once()
 
     def test_task_retries_on_failure(self, reader):
         """Task should retry when service raises an exception."""
-        with patch("apps.notifications.tasks.send_notification_email.__wrapped__", create=True):
+        with patch(
+            "apps.notifications.tasks.send_notification_email.__wrapped__", create=True
+        ):
             pass  # verifying retry config
         assert send_notification_email_task.max_retries == 3
         assert send_notification_email_task.default_retry_delay == 60
 
 
 # ── API: notification history ─────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestNotificationListView:
@@ -185,6 +250,7 @@ class TestNotificationListView:
 
 
 # ── API: admin notification list ──────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestAdminNotificationListView:
@@ -214,11 +280,14 @@ class TestAdminNotificationListView:
 
 # ── API: admin notification stats ─────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestAdminNotificationStatsView:
     def test_returns_stats(self, admin_client, reader):
         Notification.objects.create(user=reader, type="reminder", is_sent=True)
-        Notification.objects.create(user=reader, type="reminder", is_sent=False, error_message="err")
+        Notification.objects.create(
+            user=reader, type="reminder", is_sent=False, error_message="err"
+        )
         Notification.objects.create(user=reader, type="overdue", is_sent=True)
         resp = admin_client.get("/api/v1/admin/notifications/stats/")
         assert resp.status_code == 200

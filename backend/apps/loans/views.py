@@ -1,5 +1,10 @@
-from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema, extend_schema_view
 from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.pagination import PageNumberPagination
@@ -30,8 +35,8 @@ from apps.loans.services import (
 )
 from apps.users.permissions import IsAdmin
 
-
 # ── Reader loan endpoints ─────────────────────────────────────────────────────
+
 
 @extend_schema(
     tags=["Loans"],
@@ -74,7 +79,9 @@ class LoanHistoryView(APIView):
     request=LoanCreateSerializer,
     responses={
         201: LoanSerializer,
-        400: OpenApiResponse(description="Copy unavailable, reader already has an active loan for this book, or other business rule violation."),
+        400: OpenApiResponse(
+            description="Copy unavailable, reader already has an active loan for this book, or other business rule violation."
+        ),
         404: OpenApiResponse(description="Copy not found."),
     },
 )
@@ -104,7 +111,9 @@ class BorrowBookView(APIView):
     request=LoanActionSerializer,
     responses={
         200: LoanSerializer,
-        400: OpenApiResponse(description="Loan is already returned or does not belong to the reader."),
+        400: OpenApiResponse(
+            description="Loan is already returned or does not belong to the reader."
+        ),
         404: OpenApiResponse(description="Loan not found."),
     },
 )
@@ -134,7 +143,9 @@ class ReturnBookView(APIView):
     request=LoanActionSerializer,
     responses={
         200: LoanSerializer,
-        400: OpenApiResponse(description="Loan already extended the maximum number of times, or is overdue/returned."),
+        400: OpenApiResponse(
+            description="Loan already extended the maximum number of times, or is overdue/returned."
+        ),
         404: OpenApiResponse(description="Loan not found."),
     },
 )
@@ -156,6 +167,7 @@ class ExtendLoanView(APIView):
 
 # ── Penalty endpoints ─────────────────────────────────────────────────────────
 
+
 @extend_schema(
     tags=["Penalties"],
     summary="List own penalties",
@@ -166,7 +178,9 @@ class PenaltyListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        penalties = Penalty.objects.select_related("loan__copy__book").filter(loan__reader=request.user)
+        penalties = Penalty.objects.select_related("loan__copy__book").filter(
+            loan__reader=request.user
+        )
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(penalties, request)
         return paginator.get_paginated_response(PenaltySerializer(page, many=True).data)
@@ -197,6 +211,7 @@ class PayPenaltyView(APIView):
 
 # ── Reservation endpoints ─────────────────────────────────────────────────────
 
+
 @extend_schema_view(
     get=extend_schema(
         tags=["Reservations"],
@@ -215,7 +230,9 @@ class PayPenaltyView(APIView):
         request=ReservationCreateSerializer,
         responses={
             201: ReservationSerializer,
-            400: OpenApiResponse(description="Reader already has a pending reservation for this book, or other business rule violation."),
+            400: OpenApiResponse(
+                description="Reader already has a pending reservation for this book, or other business rule violation."
+            ),
             404: OpenApiResponse(description="Book not found."),
         },
     ),
@@ -224,22 +241,30 @@ class ReservationListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        reservations = Reservation.objects.select_related("book").filter(reader=request.user)
+        reservations = Reservation.objects.select_related("book").filter(
+            reader=request.user
+        )
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(reservations, request)
-        return paginator.get_paginated_response(ReservationSerializer(page, many=True).data)
+        return paginator.get_paginated_response(
+            ReservationSerializer(page, many=True).data
+        )
 
     def post(self, request):
         serializer = ReservationCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         try:
-            reservation = reserve_book(request.user, serializer.validated_data["book_id"])
+            reservation = reserve_book(
+                request.user, serializer.validated_data["book_id"]
+            )
         except ValueError as exc:
             raise ValidationError({"error": str(exc)})
         except Exception:
             raise NotFound({"error": "Book not found.", "code": "BOOK_NOT_FOUND"})
-        return Response(ReservationSerializer(reservation).data, status=status.HTTP_201_CREATED)
+        return Response(
+            ReservationSerializer(reservation).data, status=status.HTTP_201_CREATED
+        )
 
 
 @extend_schema(
@@ -259,13 +284,16 @@ class ReservationCancelView(APIView):
         try:
             cancel_reservation(pk, request.user)
         except Reservation.DoesNotExist:
-            raise NotFound({"error": "Reservation not found.", "code": "RESERVATION_NOT_FOUND"})
+            raise NotFound(
+                {"error": "Reservation not found.", "code": "RESERVATION_NOT_FOUND"}
+            )
         except ValueError as exc:
             raise ValidationError({"error": str(exc)})
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ── Admin loan views ──────────────────────────────────────────────────────────
+
 
 @extend_schema(
     tags=["Loans (Admin)"],
@@ -314,19 +342,30 @@ class AdminLoanListView(APIView):
             qs = qs.filter(copy__book_id=book_id)
 
         ordering = request.query_params.get("ordering", "-borrowed_at")
-        allowed_orderings = {"borrowed_at", "-borrowed_at", "due_date", "-due_date", "status", "-status"}
+        allowed_orderings = {
+            "borrowed_at",
+            "-borrowed_at",
+            "due_date",
+            "-due_date",
+            "status",
+            "-status",
+        }
         if ordering not in allowed_orderings:
             ordering = "-borrowed_at"
         qs = qs.order_by(ordering)
 
         paginator = PageNumberPagination()
         try:
-            paginator.page_size = min(int(request.query_params.get("page_size", 20)), 100)
+            paginator.page_size = min(
+                int(request.query_params.get("page_size", 20)), 100
+            )
         except (ValueError, TypeError):
             paginator.page_size = 20
 
         page = paginator.paginate_queryset(qs, request)
-        return paginator.get_paginated_response(AdminLoanSerializer(page, many=True).data)
+        return paginator.get_paginated_response(
+            AdminLoanSerializer(page, many=True).data
+        )
 
 
 @extend_schema(
@@ -356,7 +395,9 @@ class AdminOverdueLoansView(APIView):
     ),
     responses={
         200: PenaltySerializer,
-        400: OpenApiResponse(description="Penalty is already settled (paid or waived)."),
+        400: OpenApiResponse(
+            description="Penalty is already settled (paid or waived)."
+        ),
         404: OpenApiResponse(description="Penalty not found."),
     },
 )

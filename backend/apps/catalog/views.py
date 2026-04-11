@@ -1,5 +1,10 @@
-from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema, extend_schema_view
 from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import permissions, status
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.pagination import PageNumberPagination
@@ -18,11 +23,7 @@ from apps.catalog.serializers import (
     ReviewSerializer,
     WishlistSerializer,
 )
-from apps.catalog.services import (
-    get_book_detail,
-    get_books,
-    search_open_library,
-)
+from apps.catalog.services import get_book_detail, get_books, search_open_library
 from apps.users.permissions import IsAdmin
 
 
@@ -104,7 +105,9 @@ class BookSearchView(APIView):
     def get(self, request):
         q = request.query_params.get("q", "").strip()
         if not q:
-            raise ValidationError({"error": "Query parameter 'q' is required.", "code": "MISSING_QUERY"})
+            raise ValidationError(
+                {"error": "Query parameter 'q' is required.", "code": "MISSING_QUERY"}
+            )
         qs = get_books({"search": q})
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(qs, request)
@@ -140,7 +143,9 @@ class OpenLibrarySearchView(APIView):
     def get(self, request):
         q = request.query_params.get("q", "").strip()
         if not q:
-            raise ValidationError({"error": "Query parameter 'q' is required.", "code": "MISSING_QUERY"})
+            raise ValidationError(
+                {"error": "Query parameter 'q' is required.", "code": "MISSING_QUERY"}
+            )
         results = search_open_library(q)
         serializer = OpenLibrarySearchResultSerializer(results, many=True)
         return Response(serializer.data)
@@ -164,6 +169,7 @@ class OpenLibraryImportView(APIView):
 
     def post(self, request, identifier):
         from apps.catalog.tasks import import_book_task
+
         import_book_task.delay(identifier)
         return Response(
             {"message": f"Import for '{identifier}' has been queued."},
@@ -208,8 +214,12 @@ class ReviewListCreateView(APIView):
     def get(self, request):
         book_id = request.query_params.get("book")
         if not book_id:
-            raise ValidationError({"error": "Query parameter 'book' is required.", "code": "MISSING_BOOK"})
-        qs = Review.objects.filter(book_id=book_id, is_approved=True).select_related("reader")
+            raise ValidationError(
+                {"error": "Query parameter 'book' is required.", "code": "MISSING_BOOK"}
+            )
+        qs = Review.objects.filter(book_id=book_id, is_approved=True).select_related(
+            "reader"
+        )
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(qs, request)
         return paginator.get_paginated_response(ReviewSerializer(page, many=True).data)
@@ -224,7 +234,10 @@ class ReviewListCreateView(APIView):
             raise NotFound({"error": "Book not found.", "code": "BOOK_NOT_FOUND"})
         if Review.objects.filter(book=book, reader=request.user).exists():
             return Response(
-                {"error": "You have already reviewed this book.", "code": "ALREADY_REVIEWED"},
+                {
+                    "error": "You have already reviewed this book.",
+                    "code": "ALREADY_REVIEWED",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         review = Review.objects.create(
@@ -238,6 +251,7 @@ class ReviewListCreateView(APIView):
 
 class AdminReviewListView(APIView):
     """List all pending reviews for moderation."""
+
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
@@ -254,6 +268,7 @@ class AdminReviewListView(APIView):
 
 class AdminReviewDetailView(APIView):
     """Approve or delete a review."""
+
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def _get(self, pk):
@@ -282,7 +297,9 @@ class WishlistView(APIView):
         qs = Wishlist.objects.filter(reader=request.user).select_related("book")
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(qs, request)
-        return paginator.get_paginated_response(WishlistSerializer(page, many=True).data)
+        return paginator.get_paginated_response(
+            WishlistSerializer(page, many=True).data
+        )
 
     def post(self, request):
         book_id = request.data.get("book_id")
@@ -308,13 +325,16 @@ class WishlistView(APIView):
                 {"error": "book_id is required.", "code": "MISSING_BOOK_ID"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        deleted, _ = Wishlist.objects.filter(reader=request.user, book_id=book_id).delete()
+        deleted, _ = Wishlist.objects.filter(
+            reader=request.user, book_id=book_id
+        ).delete()
         if not deleted:
             raise NotFound({"error": "Wishlist entry not found.", "code": "NOT_FOUND"})
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ── Admin catalog views ───────────────────────────────────────────────────────
+
 
 @extend_schema_view(
     get=extend_schema(

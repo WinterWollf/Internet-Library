@@ -7,8 +7,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.users.models import User
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def api_client():
@@ -54,19 +54,23 @@ def admin_client(api_client, admin_user):
 
 # ── Registration ──────────────────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestRegister:
     url = "/api/v1/auth/register/"
 
     def test_register_success(self, api_client):
-        resp = api_client.post(self.url, {
-            "first_name": "Alice",
-            "last_name": "Smith",
-            "email": "alice@example.com",
-            "password": "StrongPass1!",
-            "confirm_password": "StrongPass1!",
-            "gender": "female",
-        })
+        resp = api_client.post(
+            self.url,
+            {
+                "first_name": "Alice",
+                "last_name": "Smith",
+                "email": "alice@example.com",
+                "password": "StrongPass1!",
+                "confirm_password": "StrongPass1!",
+                "gender": "female",
+            },
+        )
         assert resp.status_code == 201
         assert "access" in resp.data
         assert "refresh" in resp.data
@@ -75,101 +79,130 @@ class TestRegister:
         assert User.objects.filter(email="alice@example.com").exists()
 
     def test_register_duplicate_email(self, api_client, reader):
-        resp = api_client.post(self.url, {
-            "first_name": "Jane",
-            "last_name": "Duplicate",
-            "email": reader.email,
-            "password": "StrongPass1!",
-            "confirm_password": "StrongPass1!",
-        })
+        resp = api_client.post(
+            self.url,
+            {
+                "first_name": "Jane",
+                "last_name": "Duplicate",
+                "email": reader.email,
+                "password": "StrongPass1!",
+                "confirm_password": "StrongPass1!",
+            },
+        )
         assert resp.status_code == 400
 
     def test_register_passwords_mismatch(self, api_client):
-        resp = api_client.post(self.url, {
-            "first_name": "Bob",
-            "last_name": "Test",
-            "email": "bob@example.com",
-            "password": "StrongPass1!",
-            "confirm_password": "DifferentPass1!",
-        })
+        resp = api_client.post(
+            self.url,
+            {
+                "first_name": "Bob",
+                "last_name": "Test",
+                "email": "bob@example.com",
+                "password": "StrongPass1!",
+                "confirm_password": "DifferentPass1!",
+            },
+        )
         assert resp.status_code == 400
 
     def test_register_weak_password(self, api_client):
-        resp = api_client.post(self.url, {
-            "first_name": "Bob",
-            "last_name": "Test",
-            "email": "bob@example.com",
-            "password": "1234",
-            "confirm_password": "1234",
-        })
+        resp = api_client.post(
+            self.url,
+            {
+                "first_name": "Bob",
+                "last_name": "Test",
+                "email": "bob@example.com",
+                "password": "1234",
+                "confirm_password": "1234",
+            },
+        )
         assert resp.status_code == 400
 
     def test_register_male_avatar(self, api_client):
-        resp = api_client.post(self.url, {
-            "first_name": "Bob",
-            "last_name": "Test",
-            "email": "bob2@example.com",
-            "password": "StrongPass1!",
-            "confirm_password": "StrongPass1!",
-            "gender": "male",
-        })
+        resp = api_client.post(
+            self.url,
+            {
+                "first_name": "Bob",
+                "last_name": "Test",
+                "email": "bob2@example.com",
+                "password": "StrongPass1!",
+                "confirm_password": "StrongPass1!",
+                "gender": "male",
+            },
+        )
         assert resp.status_code == 201
         assert resp.data["user"]["avatar_url"] == "/static/avatars/male.png"
 
 
 # ── Login ─────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestLogin:
     url = "/api/v1/auth/login/"
 
     def test_login_success(self, api_client, reader):
-        resp = api_client.post(self.url, {
-            "email": reader.email,
-            "password": "SecurePass123!",
-        })
+        resp = api_client.post(
+            self.url,
+            {
+                "email": reader.email,
+                "password": "SecurePass123!",
+            },
+        )
         assert resp.status_code == 200
         assert "access" in resp.data
         assert "refresh" in resp.data
         assert resp.data["mfa_required"] is False
 
     def test_login_invalid_password(self, api_client, reader):
-        resp = api_client.post(self.url, {
-            "email": reader.email,
-            "password": "WrongPassword",
-        })
+        resp = api_client.post(
+            self.url,
+            {
+                "email": reader.email,
+                "password": "WrongPassword",
+            },
+        )
         assert resp.status_code == 401
         assert resp.data["code"] == "INVALID_CREDENTIALS"
 
     def test_login_nonexistent_email(self, api_client):
-        resp = api_client.post(self.url, {
-            "email": "nobody@example.com",
-            "password": "SomePass123!",
-        })
+        resp = api_client.post(
+            self.url,
+            {
+                "email": "nobody@example.com",
+                "password": "SomePass123!",
+            },
+        )
         assert resp.status_code == 401
 
     def test_login_blocked_user_returns_403(self, api_client, reader):
         reader.is_blocked = True
         reader.save()
-        resp = api_client.post(self.url, {
-            "email": reader.email,
-            "password": "SecurePass123!",
-        })
+        resp = api_client.post(
+            self.url,
+            {
+                "email": reader.email,
+                "password": "SecurePass123!",
+            },
+        )
         assert resp.status_code == 403
         assert resp.data["code"] == "ACCOUNT_BLOCKED"
 
     def test_login_mfa_required_flag(self, api_client, reader):
         reader.mfa_enabled = True
         reader.save()
-        resp = api_client.post(self.url, {
-            "email": reader.email,
-            "password": "SecurePass123!",
-        })
+        resp = api_client.post(
+            self.url,
+            {
+                "email": reader.email,
+                "password": "SecurePass123!",
+            },
+        )
         assert resp.status_code == 200
         assert resp.data["mfa_required"] is True
 
 
 # ── Token refresh ─────────────────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestTokenRefresh:
@@ -187,6 +220,7 @@ class TestTokenRefresh:
 
 
 # ── Logout ────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestLogout:
@@ -209,6 +243,7 @@ class TestLogout:
 
 # ── Profile ───────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestProfile:
     url = "/api/v1/auth/profile/"
@@ -221,7 +256,9 @@ class TestProfile:
         assert resp.data["avatar_url"] == "/static/avatars/female.png"
 
     def test_update_profile(self, reader_client, reader):
-        resp = reader_client.patch(self.url, {"first_name": "Updated", "phone": "+48 100 200 300"})
+        resp = reader_client.patch(
+            self.url, {"first_name": "Updated", "phone": "+48 100 200 300"}
+        )
         assert resp.status_code == 200
         assert resp.data["first_name"] == "Updated"
         assert resp.data["phone"] == "+48 100 200 300"
@@ -246,38 +283,49 @@ class TestProfile:
 
 # ── Change password ───────────────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestChangePassword:
     url = "/api/v1/auth/change-password/"
 
     def test_change_password_success(self, reader_client, reader):
-        resp = reader_client.post(self.url, {
-            "current_password": "SecurePass123!",
-            "new_password": "NewSecure456!",
-            "confirm_new_password": "NewSecure456!",
-        })
+        resp = reader_client.post(
+            self.url,
+            {
+                "current_password": "SecurePass123!",
+                "new_password": "NewSecure456!",
+                "confirm_new_password": "NewSecure456!",
+            },
+        )
         assert resp.status_code == 200
         reader.refresh_from_db()
         assert reader.check_password("NewSecure456!")
 
     def test_wrong_current_password(self, reader_client):
-        resp = reader_client.post(self.url, {
-            "current_password": "WrongOldPass!",
-            "new_password": "NewSecure456!",
-            "confirm_new_password": "NewSecure456!",
-        })
+        resp = reader_client.post(
+            self.url,
+            {
+                "current_password": "WrongOldPass!",
+                "new_password": "NewSecure456!",
+                "confirm_new_password": "NewSecure456!",
+            },
+        )
         assert resp.status_code == 400
 
     def test_new_passwords_mismatch(self, reader_client):
-        resp = reader_client.post(self.url, {
-            "current_password": "SecurePass123!",
-            "new_password": "NewSecure456!",
-            "confirm_new_password": "DifferentPass!",
-        })
+        resp = reader_client.post(
+            self.url,
+            {
+                "current_password": "SecurePass123!",
+                "new_password": "NewSecure456!",
+                "confirm_new_password": "DifferentPass!",
+            },
+        )
         assert resp.status_code == 400
 
 
 # ── MFA ───────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestMfa:
@@ -341,6 +389,7 @@ class TestMfa:
 
 
 # ── Admin user management ─────────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestAdminUserManagement:
@@ -411,6 +460,7 @@ class TestAdminUserManagement:
 
 # ── Blocked user middleware ───────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestBlockedUserMiddleware:
     def test_blocked_user_gets_403_on_authenticated_request(self, api_client, reader):
@@ -433,10 +483,13 @@ class TestBlockedUserMiddleware:
         # Unauthenticated requests are not subject to the blocked-user check
         reader.is_blocked = True
         reader.save()
-        resp = api_client.post("/api/v1/auth/login/", {
-            "email": reader.email,
-            "password": "SecurePass123!",
-        })
+        resp = api_client.post(
+            "/api/v1/auth/login/",
+            {
+                "email": reader.email,
+                "password": "SecurePass123!",
+            },
+        )
         # Login view itself handles blocked check; middleware doesn't fire for anon
         assert resp.status_code == 403
         assert resp.data["code"] == "ACCOUNT_BLOCKED"

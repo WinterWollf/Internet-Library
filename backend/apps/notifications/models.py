@@ -12,7 +12,9 @@ class Notification(models.Model):
     class Channel(models.TextChoices):
         EMAIL = "email", "Email"
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications"
+    )
     type = models.CharField(max_length=20, choices=Type.choices)
     loan = models.ForeignKey(
         "loans.Loan",
@@ -22,7 +24,9 @@ class Notification(models.Model):
         related_name="notifications",
     )
     sent_at = models.DateTimeField(auto_now_add=True)
-    channel = models.CharField(max_length=10, choices=Channel.choices, default=Channel.EMAIL)
+    channel = models.CharField(
+        max_length=10, choices=Channel.choices, default=Channel.EMAIL
+    )
     is_sent = models.BooleanField(default=False)
     error_message = models.TextField(blank=True)
 

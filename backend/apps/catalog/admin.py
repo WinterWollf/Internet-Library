@@ -5,7 +5,14 @@ from apps.catalog.models import Book, BookCopy, Review
 
 @admin.register(Book)
 class BookAdmin(admin.ModelAdmin):
-    list_display = ["title", "author", "isbn", "language", "year_published", "created_at"]
+    list_display = [
+        "title",
+        "author",
+        "isbn",
+        "language",
+        "year_published",
+        "created_at",
+    ]
     search_fields = ["title", "author", "isbn", "ol_id"]
     list_filter = ["language", "year_published"]
     readonly_fields = ["search_vector", "created_at", "updated_at"]

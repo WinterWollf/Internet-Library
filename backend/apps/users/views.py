@@ -2,8 +2,9 @@ import base64
 import io
 import urllib.parse
 
-import qrcode
 from django.core import signing
+
+import qrcode
 from django_otp.plugins.otp_totp.models import TOTPDevice
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import generics, permissions, status
@@ -28,12 +29,14 @@ def _build_totp_uri(device: TOTPDevice) -> str:
     issuer = "Internet Library"
     label = urllib.parse.quote(f"{issuer}:{device.user.email}", safe="")
     secret = base64.b32encode(device.bin_key).decode("utf-8")
-    params = urllib.parse.urlencode({
-        "secret": secret,
-        "issuer": issuer,
-        "digits": device.digits,
-        "period": device.step,
-    })
+    params = urllib.parse.urlencode(
+        {
+            "secret": secret,
+            "issuer": issuer,
+            "digits": device.digits,
+            "period": device.step,
+        }
+    )
     return f"otpauth://totp/{label}?{params}"
 
 
@@ -47,6 +50,7 @@ def _make_qr_png_b64(uri: str) -> str:
 
 # ── Auth endpoints ────────────────────────────────────────────────────────────
 
+
 @extend_schema(
     tags=["Auth"],
     summary="Register a new reader account",
@@ -57,8 +61,12 @@ def _make_qr_png_b64(uri: str) -> str:
     auth=[],
     request=RegisterSerializer,
     responses={
-        201: OpenApiResponse(description="Registration successful — returns `access`, `refresh` and `user` profile."),
-        400: OpenApiResponse(description="Validation error (e.g. email already taken, passwords don't match)."),
+        201: OpenApiResponse(
+            description="Registration successful — returns `access`, `refresh` and `user` profile."
+        ),
+        400: OpenApiResponse(
+            description="Validation error (e.g. email already taken, passwords don't match)."
+        ),
     },
 )
 def _token_pair(user):
@@ -101,7 +109,9 @@ class RegisterView(APIView):
     auth=[],
     request=LoginSerializer,
     responses={
-        200: OpenApiResponse(description="Login successful — returns `access`, `refresh`, `mfa_required` and `user` profile."),
+        200: OpenApiResponse(
+            description="Login successful — returns `access`, `refresh`, `mfa_required` and `user` profile."
+        ),
         401: OpenApiResponse(description="Invalid email or password."),
         403: OpenApiResponse(description="Account is blocked."),
     },
@@ -130,18 +140,18 @@ class LoginView(APIView):
             )
 
         if user.mfa_enabled:
-            mfa_token = signing.dumps(
-                {"user_id": user.id}, salt="mfa-login"
-            )
+            mfa_token = signing.dumps({"user_id": user.id}, salt="mfa-login")
             return Response({"mfa_required": True, "mfa_token": mfa_token})
 
         refresh = _token_pair(user)
-        return Response({
-            "access": str(refresh.access_token),
-            "refresh": str(refresh),
-            "mfa_required": False,
-            "user": UserProfileSerializer(user).data,
-        })
+        return Response(
+            {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "mfa_required": False,
+                "user": UserProfileSerializer(user).data,
+            }
+        )
 
 
 @extend_schema(
@@ -203,7 +213,9 @@ class ProfileView(generics.RetrieveUpdateAPIView):
     request=ChangePasswordSerializer,
     responses={
         200: OpenApiResponse(description="Password updated successfully."),
-        400: OpenApiResponse(description="Current password incorrect, or new passwords don't match."),
+        400: OpenApiResponse(
+            description="Current password incorrect, or new passwords don't match."
+        ),
     },
 )
 class ChangePasswordView(APIView):
@@ -219,6 +231,7 @@ class ChangePasswordView(APIView):
 
 # ── MFA endpoints ─────────────────────────────────────────────────────────────
 
+
 @extend_schema(
     tags=["Auth"],
     summary="Start MFA setup — get TOTP QR code",
@@ -228,7 +241,9 @@ class ChangePasswordView(APIView):
         "(Google Authenticator, Authy, etc.), then confirm setup with `POST /api/v1/auth/mfa/verify/`."
     ),
     responses={
-        200: OpenApiResponse(description="Returns `otpauth_uri` string and `qr_png_base64` encoded PNG."),
+        200: OpenApiResponse(
+            description="Returns `otpauth_uri` string and `qr_png_base64` encoded PNG."
+        ),
     },
 )
 class MfaSetupView(APIView):
@@ -253,7 +268,9 @@ class MfaSetupView(APIView):
     ),
     responses={
         200: OpenApiResponse(description="MFA activated successfully."),
-        400: OpenApiResponse(description="Invalid TOTP code, or no pending MFA setup found for this user."),
+        400: OpenApiResponse(
+            description="Invalid TOTP code, or no pending MFA setup found for this user."
+        ),
     },
 )
 class MfaVerifyView(APIView):
@@ -307,8 +324,12 @@ class MfaDisableView(APIView):
     ),
     auth=[],
     responses={
-        200: OpenApiResponse(description="MFA verified — returns `access`, `refresh` and `user` profile."),
-        400: OpenApiResponse(description="Invalid or expired MFA token, or wrong TOTP code."),
+        200: OpenApiResponse(
+            description="MFA verified — returns `access`, `refresh` and `user` profile."
+        ),
+        400: OpenApiResponse(
+            description="Invalid or expired MFA token, or wrong TOTP code."
+        ),
     },
 )
 class MfaLoginView(APIView):
@@ -322,7 +343,10 @@ class MfaLoginView(APIView):
             payload = signing.loads(mfa_token, salt="mfa-login", max_age=300)
         except signing.SignatureExpired:
             return Response(
-                {"error": "MFA session expired. Please log in again.", "code": "MFA_EXPIRED"},
+                {
+                    "error": "MFA session expired. Please log in again.",
+                    "code": "MFA_EXPIRED",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except signing.BadSignature:
@@ -347,14 +371,17 @@ class MfaLoginView(APIView):
             )
 
         refresh = _token_pair(user)
-        return Response({
-            "access": str(refresh.access_token),
-            "refresh": str(refresh),
-            "user": UserProfileSerializer(user).data,
-        })
+        return Response(
+            {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "user": UserProfileSerializer(user).data,
+            }
+        )
 
 
 # ── Self-service account actions ──────────────────────────────────────────────
+
 
 @extend_schema(
     tags=["Auth"],
@@ -386,6 +413,7 @@ class DeleteAccountView(APIView):
 
 
 # ── Admin user management ─────────────────────────────────────────────────────
+
 
 @extend_schema(
     tags=["Users (Admin)"],

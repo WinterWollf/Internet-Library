@@ -40,6 +40,7 @@ def block_user(user_id: int, reason: str, admin=None) -> User:
     # Notify the blocked user (lazy import to avoid circular dependency)
     try:
         from apps.notifications.tasks import send_notification_email
+
         send_notification_email.delay(
             user_id,
             "account_blocked",

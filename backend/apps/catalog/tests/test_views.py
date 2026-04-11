@@ -7,8 +7,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from apps.catalog.models import Book, BookCopy, Review
 from apps.users.models import User
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def api_client():
@@ -79,6 +79,7 @@ def approved_review(book, reader):
 
 # ── Public book listing ───────────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestBookListView:
     def test_returns_200_without_auth(self, api_client, book):
@@ -88,14 +89,26 @@ class TestBookListView:
         assert resp.data["results"][0]["title"] == "The Lord of the Rings"
 
     def test_filter_by_language(self, api_client, book):
-        Book.objects.create(title="French Book", author="Author", isbn="111", ol_id="OL_FR1", language="fr")
+        Book.objects.create(
+            title="French Book",
+            author="Author",
+            isbn="111",
+            ol_id="OL_FR1",
+            language="fr",
+        )
         resp = api_client.get("/api/v1/catalog/books/?language=en")
         assert resp.status_code == 200
         assert resp.data["count"] == 1
         assert resp.data["results"][0]["language"] == "en"
 
     def test_filter_by_genre(self, api_client, book):
-        Book.objects.create(title="Other", author="Author", isbn="222", ol_id="OL_SCI1", genres=["Science"])
+        Book.objects.create(
+            title="Other",
+            author="Author",
+            isbn="222",
+            ol_id="OL_SCI1",
+            genres=["Science"],
+        )
         resp = api_client.get("/api/v1/catalog/books/?genre=Fantasy")
         assert resp.status_code == 200
         assert resp.data["count"] == 1
@@ -117,6 +130,7 @@ class TestBookListView:
 
 # ── Book detail ───────────────────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestBookDetailView:
     def test_returns_book(self, api_client, book):
@@ -130,7 +144,9 @@ class TestBookDetailView:
         resp = api_client.get("/api/v1/catalog/books/99999/")
         assert resp.status_code == 404
 
-    def test_only_approved_reviews_returned(self, api_client, book, reader, approved_review):
+    def test_only_approved_reviews_returned(
+        self, api_client, book, reader, approved_review
+    ):
         Review.objects.create(
             book=book,
             reader=User.objects.create_user(
@@ -152,6 +168,7 @@ class TestBookDetailView:
 
 # ── Full-text search ──────────────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestBookSearchView:
     def test_requires_q_param(self, api_client):
@@ -167,6 +184,7 @@ class TestBookSearchView:
 
 
 # ── Open Library search ───────────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestOpenLibrarySearchView:
@@ -202,6 +220,7 @@ class TestOpenLibrarySearchView:
 
 # ── Open Library import ───────────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestOpenLibraryImportView:
     def test_requires_auth(self, api_client):
@@ -221,6 +240,7 @@ class TestOpenLibraryImportView:
 
 
 # ── Admin book management ─────────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestAdminBookListView:
@@ -272,6 +292,7 @@ class TestAdminBookDetailView:
 
 
 # ── Admin copy management ─────────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestAdminCopyListView:

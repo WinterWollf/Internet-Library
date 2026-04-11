@@ -1,6 +1,12 @@
 from django.urls import path
 
-from apps.catalog.views import BookDetailView, BookListView, BookSearchView, ReviewListCreateView, WishlistView
+from apps.catalog.views import (
+    BookDetailView,
+    BookListView,
+    BookSearchView,
+    ReviewListCreateView,
+    WishlistView,
+)
 
 urlpatterns = [
     path("books/", BookListView.as_view(), name="book_list"),

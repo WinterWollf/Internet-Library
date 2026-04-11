@@ -1,5 +1,5 @@
-from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
@@ -8,7 +8,9 @@ from rest_framework.views import APIView
 
 from apps.notifications.serializers import NotificationSerializer
 from apps.notifications.services import get_notification_stats, get_user_notifications
-from apps.notifications.tasks import send_notification_email as send_notification_email_task
+from apps.notifications.tasks import (
+    send_notification_email as send_notification_email_task,
+)
 from apps.users.models import User
 from apps.users.permissions import IsAdmin
 
@@ -26,7 +28,9 @@ class NotificationListView(APIView):
         notifications = get_user_notifications(request.user)
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(notifications, request)
-        return paginator.get_paginated_response(NotificationSerializer(page, many=True).data)
+        return paginator.get_paginated_response(
+            NotificationSerializer(page, many=True).data
+        )
 
 
 @extend_schema(
@@ -80,7 +84,9 @@ class AdminNotificationListView(APIView):
 
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(qs, request)
-        return paginator.get_paginated_response(NotificationSerializer(page, many=True).data)
+        return paginator.get_paginated_response(
+            NotificationSerializer(page, many=True).data
+        )
 
 
 @extend_schema(
@@ -91,7 +97,9 @@ class AdminNotificationListView(APIView):
         "Includes totals for all time."
     ),
     responses={
-        200: OpenApiResponse(description="Returns `by_type` array with `type`, `total` and `sent` counts, plus overall `total`, `sent` and `failed` totals."),
+        200: OpenApiResponse(
+            description="Returns `by_type` array with `type`, `total` and `sent` counts, plus overall `total`, `sent` and `failed` totals."
+        ),
     },
 )
 class AdminNotificationStatsView(APIView):

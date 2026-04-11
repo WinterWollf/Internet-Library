@@ -17,6 +17,7 @@ BLOCK_OVERDUE_DAYS = 60  # days overdue before auto-block
 
 # ── Borrowing ─────────────────────────────────────────────────────────────────
 
+
 def borrow_book(reader, copy_id: int) -> Loan:
     """
     Create a loan for reader+copy. Raises ValueError on any pre-condition failure.
@@ -29,11 +30,9 @@ def borrow_book(reader, copy_id: int) -> Loan:
     if not copy.is_available:
         raise ValueError("This copy is not available for borrowing.")
 
-    unpaid_total = (
-        Penalty.objects.filter(loan__reader=reader, paid_at__isnull=True)
-        .aggregate(total=Sum("amount"))["total"]
-        or Decimal("0")
-    )
+    unpaid_total = Penalty.objects.filter(
+        loan__reader=reader, paid_at__isnull=True
+    ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
     if unpaid_total > UNPAID_PENALTY_THRESHOLD:
         raise ValueError(
             f"You have unpaid penalties of €{unpaid_total:.2f}. "
@@ -75,9 +74,11 @@ def _notify_reservation_ready(book) -> None:
     """Trigger reservation_ready notifications for readers with pending reservations."""
     from apps.notifications.tasks import send_notification_email
 
-    pending = Reservation.objects.filter(
-        book=book, status=Reservation.Status.PENDING
-    ).select_related("reader").order_by("reserved_at")
+    pending = (
+        Reservation.objects.filter(book=book, status=Reservation.Status.PENDING)
+        .select_related("reader")
+        .order_by("reserved_at")
+    )
 
     for reservation in pending:
         send_notification_email.delay(
@@ -102,7 +103,9 @@ def extend_loan(loan_id: int, reader) -> Loan:
     if loan.status == Loan.Status.RETURNED:
         raise ValueError("Returned loans cannot be extended.")
     if loan.prolongation_count >= MAX_PROLONGATIONS:
-        raise ValueError(f"This loan has already been extended {MAX_PROLONGATIONS} time(s).")
+        raise ValueError(
+            f"This loan has already been extended {MAX_PROLONGATIONS} time(s)."
+        )
 
     loan.due_date += timedelta(days=LOAN_DURATION_DAYS)
     loan.prolongation_count += 1
@@ -112,6 +115,7 @@ def extend_loan(loan_id: int, reader) -> Loan:
 
 
 # ── Penalties ─────────────────────────────────────────────────────────────────
+
 
 def calculate_overdue_penalty(loan: Loan) -> Penalty:
     """
@@ -124,7 +128,9 @@ def calculate_overdue_penalty(loan: Loan) -> Penalty:
     days_overdue = max((timezone.now() - loan.due_date).days, 1)
     amount = OVERDUE_PENALTY_RATE * days_overdue
 
-    return Penalty.objects.create(loan=loan, amount=amount, reason=Penalty.Reason.OVERDUE)
+    return Penalty.objects.create(
+        loan=loan, amount=amount, reason=Penalty.Reason.OVERDUE
+    )
 
 
 def pay_penalty(penalty_id: int, reader) -> Penalty:
@@ -158,6 +164,7 @@ def waive_penalty(penalty_id: int, admin) -> Penalty:
 
 # ── Reservations ──────────────────────────────────────────────────────────────
 
+
 def reserve_book(reader, book_id: int) -> Reservation:
     """
     Reserve a book when no copies are available.
@@ -168,7 +175,9 @@ def reserve_book(reader, book_id: int) -> Reservation:
     book = Book.objects.get(pk=book_id)
 
     if book.copies.filter(is_available=True).exists():
-        raise ValueError("Copies of this book are currently available. Please borrow directly.")
+        raise ValueError(
+            "Copies of this book are currently available. Please borrow directly."
+        )
 
     if Reservation.objects.filter(
         book=book, reader=reader, status=Reservation.Status.PENDING
@@ -196,6 +205,7 @@ def cancel_reservation(reservation_id: int, reader) -> Reservation:
 
 # ── Queries ───────────────────────────────────────────────────────────────────
 
+
 def get_active_loans(reader):
     """Active and overdue loans for reader, ordered by due_date ascending."""
     return (
@@ -215,6 +225,7 @@ def get_loan_history(reader):
 
 
 # ── Scheduled task helpers ────────────────────────────────────────────────────
+
 
 def mark_overdue_loans() -> int:
     """

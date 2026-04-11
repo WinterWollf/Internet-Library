@@ -2,8 +2,9 @@ from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
-import pytest
 from django.utils import timezone
+
+import pytest
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -24,8 +25,8 @@ from apps.loans.services import (
 from apps.loans.tasks import check_overdue_loans
 from apps.users.models import User
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def api_client():
@@ -97,7 +98,9 @@ def active_loan(reader, copy):
     due = timezone.now() + timedelta(days=LOAN_DURATION_DAYS)
     copy.is_available = False
     copy.save()
-    return Loan.objects.create(copy=copy, reader=reader, due_date=due, status=Loan.Status.ACTIVE)
+    return Loan.objects.create(
+        copy=copy, reader=reader, due_date=due, status=Loan.Status.ACTIVE
+    )
 
 
 @pytest.fixture
@@ -105,10 +108,13 @@ def overdue_loan(reader, copy):
     due = timezone.now() - timedelta(days=5)
     copy.is_available = False
     copy.save()
-    return Loan.objects.create(copy=copy, reader=reader, due_date=due, status=Loan.Status.OVERDUE)
+    return Loan.objects.create(
+        copy=copy, reader=reader, due_date=due, status=Loan.Status.OVERDUE
+    )
 
 
 # ── Service: borrow_book ──────────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestBorrowBook:
@@ -132,9 +138,13 @@ class TestBorrowBook:
         with pytest.raises(ValueError, match="blocked"):
             borrow_book(reader, copy.pk)
 
-    def test_borrow_with_excess_unpaid_penalties_raises(self, reader, copy, active_loan):
+    def test_borrow_with_excess_unpaid_penalties_raises(
+        self, reader, copy, active_loan
+    ):
         # Create a second copy to have an independent loan
-        copy2 = BookCopy.objects.create(book=copy.book, copy_number=2, is_available=True)
+        copy2 = BookCopy.objects.create(
+            book=copy.book, copy_number=2, is_available=True
+        )
         # Give reader unpaid penalties over the threshold
         Penalty.objects.create(
             loan=active_loan,
@@ -152,6 +162,7 @@ class TestBorrowBook:
 
 
 # ── Service: return_book ──────────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestReturnBook:
@@ -173,6 +184,7 @@ class TestReturnBook:
 
 
 # ── Service: extend_loan ──────────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestExtendLoan:
@@ -199,6 +211,7 @@ class TestExtendLoan:
 
 # ── Service: calculate_overdue_penalty ───────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestCalculateOverduePenalty:
     def test_creates_penalty_record(self, overdue_loan):
@@ -220,6 +233,7 @@ class TestCalculateOverduePenalty:
 
 
 # ── Service: pay_penalty ──────────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestPayPenalty:
@@ -250,6 +264,7 @@ class TestPayPenalty:
 
 # ── Service: reserve_book ─────────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestReserveBook:
     def test_reserve_when_no_copies_available(self, reader, book, copy):
@@ -275,6 +290,7 @@ class TestReserveBook:
 
 # ── Service: cancel_reservation ──────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestCancelReservation:
     def test_cancel_sets_cancelled(self, reader, book, copy):
@@ -293,6 +309,7 @@ class TestCancelReservation:
 
 
 # ── Celery task: check_overdue_loans ─────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestCheckOverdueLoansTask:
@@ -316,6 +333,7 @@ class TestCheckOverdueLoansTask:
             copy=copy, reader=reader, due_date=future_due, status=Loan.Status.ACTIVE
         )
         from apps.loans.services import mark_overdue_loans
+
         count = mark_overdue_loans()
         assert count == 0
         loan.refresh_from_db()
@@ -323,6 +341,7 @@ class TestCheckOverdueLoansTask:
 
 
 # ── API: borrow endpoint ──────────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestBorrowEndpoint:
@@ -344,6 +363,7 @@ class TestBorrowEndpoint:
 
 # ── API: return endpoint ──────────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestReturnEndpoint:
     def test_return_returns_200(self, reader_client, active_loan):
@@ -358,6 +378,7 @@ class TestReturnEndpoint:
 
 # ── API: extend endpoint ──────────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestExtendEndpoint:
     def test_extend_returns_200(self, reader_client, active_loan):
@@ -371,6 +392,7 @@ class TestExtendEndpoint:
 
 
 # ── API: active loans ─────────────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestActiveLoansEndpoint:
@@ -392,6 +414,7 @@ class TestActiveLoansEndpoint:
 
 # ── API: penalties ────────────────────────────────────────────────────────────
 
+
 @pytest.mark.django_db
 class TestPenaltyEndpoints:
     def test_list_own_penalties(self, reader_client, overdue_loan):
@@ -412,6 +435,7 @@ class TestPenaltyEndpoints:
 
 
 # ── API: reservations ─────────────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestReservationEndpoints:
@@ -435,6 +459,7 @@ class TestReservationEndpoints:
 
 
 # ── API: admin loans ──────────────────────────────────────────────────────────
+
 
 @pytest.mark.django_db
 class TestAdminLoanEndpoints:

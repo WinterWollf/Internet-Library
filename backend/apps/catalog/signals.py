@@ -9,4 +9,5 @@ def on_book_copy_created(sender, instance, created, **kwargs):
     """Trigger async QR code generation when a new BookCopy is created."""
     if created:
         from apps.catalog.tasks import generate_qr_code_task
+
         generate_qr_code_task.delay(instance.pk)

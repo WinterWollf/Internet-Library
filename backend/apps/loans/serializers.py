@@ -1,4 +1,5 @@
 from django.utils import timezone
+
 from rest_framework import serializers
 
 from apps.catalog.models import Book, BookCopy
@@ -27,8 +28,15 @@ class LoanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Loan
         fields = [
-            "id", "copy", "borrowed_at", "due_date", "returned_at",
-            "prolongation_count", "status", "days_remaining", "is_overdue",
+            "id",
+            "copy",
+            "borrowed_at",
+            "due_date",
+            "returned_at",
+            "prolongation_count",
+            "status",
+            "days_remaining",
+            "is_overdue",
         ]
 
     def get_days_remaining(self, obj):
@@ -43,12 +51,17 @@ class LoanSerializer(serializers.ModelSerializer):
 
 class AdminLoanSerializer(LoanSerializer):
     """Extends LoanSerializer with reader identity fields for the admin view."""
+
     reader_id = serializers.IntegerField(source="reader.id", read_only=True)
     reader_email = serializers.EmailField(source="reader.email", read_only=True)
     reader_name = serializers.SerializerMethodField()
 
     class Meta(LoanSerializer.Meta):
-        fields = LoanSerializer.Meta.fields + ["reader_id", "reader_email", "reader_name"]
+        fields = LoanSerializer.Meta.fields + [
+            "reader_id",
+            "reader_email",
+            "reader_name",
+        ]
 
     def get_reader_name(self, obj):
         full = f"{obj.reader.first_name} {obj.reader.last_name}".strip()
@@ -78,8 +91,14 @@ class PenaltySerializer(serializers.ModelSerializer):
     class Meta:
         model = Penalty
         fields = [
-            "id", "loan", "amount", "reason", "paid_at",
-            "waived_by", "created_at", "is_settled",
+            "id",
+            "loan",
+            "amount",
+            "reason",
+            "paid_at",
+            "waived_by",
+            "created_at",
+            "is_settled",
         ]
 
     def get_is_settled(self, obj):

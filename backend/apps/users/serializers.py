@@ -1,4 +1,5 @@
 from django.contrib.auth.password_validation import validate_password
+
 from rest_framework import serializers
 
 from apps.users.models import User
@@ -10,7 +11,9 @@ class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, validators=[validate_password])
     confirm_password = serializers.CharField(write_only=True)
-    gender = serializers.ChoiceField(choices=User.Gender.choices, required=False, default="")
+    gender = serializers.ChoiceField(
+        choices=User.Gender.choices, required=False, default=""
+    )
 
     def validate_email(self, value):
         if User.objects.filter(email=value.lower()).exists():
@@ -19,7 +22,9 @@ class RegisterSerializer(serializers.Serializer):
 
     def validate(self, data):
         if data["password"] != data["confirm_password"]:
-            raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
+            raise serializers.ValidationError(
+                {"confirm_password": "Passwords do not match."}
+            )
         return data
 
 
@@ -34,9 +39,19 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "id", "email", "first_name", "last_name", "phone",
-            "gender", "role", "mfa_enabled", "avatar_url",
-            "email_reminders", "email_overdue", "email_reservation", "email_account_alerts",
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "phone",
+            "gender",
+            "role",
+            "mfa_enabled",
+            "avatar_url",
+            "email_reminders",
+            "email_overdue",
+            "email_reservation",
+            "email_account_alerts",
         ]
         read_only_fields = ["id", "email", "role", "mfa_enabled", "avatar_url"]
 
@@ -54,16 +69,28 @@ class UserAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "id", "email", "first_name", "last_name", "phone",
-            "role", "is_blocked", "blocked_reason", "mfa_enabled",
-            "gender", "is_active", "date_joined", "last_login",
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "phone",
+            "role",
+            "is_blocked",
+            "blocked_reason",
+            "mfa_enabled",
+            "gender",
+            "is_active",
+            "date_joined",
+            "last_login",
         ]
         read_only_fields = ["id", "date_joined", "last_login"]
 
 
 class ChangePasswordSerializer(serializers.Serializer):
     current_password = serializers.CharField(write_only=True)
-    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+    new_password = serializers.CharField(
+        write_only=True, validators=[validate_password]
+    )
     confirm_new_password = serializers.CharField(write_only=True)
 
     def validate_current_password(self, value):
@@ -74,5 +101,7 @@ class ChangePasswordSerializer(serializers.Serializer):
 
     def validate(self, data):
         if data["new_password"] != data["confirm_new_password"]:
-            raise serializers.ValidationError({"confirm_new_password": "Passwords do not match."})
+            raise serializers.ValidationError(
+                {"confirm_new_password": "Passwords do not match."}
+            )
         return data

@@ -35,7 +35,9 @@ class BookCopy(models.Model):
 
     book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="copies")
     copy_number = models.PositiveIntegerField()
-    condition = models.CharField(max_length=10, choices=Condition.choices, default=Condition.GOOD)
+    condition = models.CharField(
+        max_length=10, choices=Condition.choices, default=Condition.GOOD
+    )
     is_available = models.BooleanField(default=True)
     qr_code = models.ImageField(upload_to="qr_codes/", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -54,7 +56,9 @@ class Wishlist(models.Model):
         on_delete=models.CASCADE,
         related_name="wishlist",
     )
-    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="wishlisted_by")
+    book = models.ForeignKey(
+        Book, on_delete=models.CASCADE, related_name="wishlisted_by"
+    )
     added_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

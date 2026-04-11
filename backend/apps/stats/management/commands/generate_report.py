@@ -28,7 +28,9 @@ class Command(BaseCommand):
         books = get_most_borrowed_books(limit=5)
         if books:
             for i, book in enumerate(books, 1):
-                self.stdout.write(f"  {i}. {book.title} — {book.author}  ({book.loan_count} loans)")
+                self.stdout.write(
+                    f"  {i}. {book.title} — {book.author}  ({book.loan_count} loans)"
+                )
         else:
             self.stdout.write("  No loans recorded yet.")
 
@@ -46,7 +48,9 @@ class Command(BaseCommand):
             self.stdout.write("  No overdue loans.")
 
         # Notification stats (last 30 days)
-        self.stdout.write(self.style.HTTP_INFO("\n--- NOTIFICATION STATS (LAST 30 DAYS) ---"))
+        self.stdout.write(
+            self.style.HTTP_INFO("\n--- NOTIFICATION STATS (LAST 30 DAYS) ---")
+        )
         notif_stats = get_notification_stats()
         if notif_stats:
             for entry in notif_stats:

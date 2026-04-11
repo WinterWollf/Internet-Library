@@ -12,12 +12,16 @@ class Loan(models.Model):
         OVERDUE = "overdue", "Overdue"
 
     copy = models.ForeignKey(BookCopy, on_delete=models.PROTECT, related_name="loans")
-    reader = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="loans")
+    reader = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="loans"
+    )
     borrowed_at = models.DateTimeField(auto_now_add=True)
     due_date = models.DateTimeField()
     returned_at = models.DateTimeField(null=True, blank=True)
     prolongation_count = models.PositiveSmallIntegerField(default=0)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.ACTIVE
+    )
 
     class Meta:
         ordering = ["-borrowed_at"]
@@ -63,11 +67,17 @@ class Reservation(models.Model):
         FULFILLED = "fulfilled", "Fulfilled"
         CANCELLED = "cancelled", "Cancelled"
 
-    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="reservations")
-    reader = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="reservations")
+    book = models.ForeignKey(
+        Book, on_delete=models.CASCADE, related_name="reservations"
+    )
+    reader = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="reservations"
+    )
     reserved_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.PENDING
+    )
 
     class Meta:
         ordering = ["-reserved_at"]

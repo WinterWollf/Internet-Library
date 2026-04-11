@@ -12,7 +12,9 @@ class DashboardStatsSerializer(serializers.Serializer):
     overdue_loans = serializers.IntegerField()
     pending_reservations = serializers.IntegerField()
     total_penalties_unpaid = serializers.DecimalField(max_digits=10, decimal_places=2)
-    total_penalties_collected = serializers.DecimalField(max_digits=10, decimal_places=2)
+    total_penalties_collected = serializers.DecimalField(
+        max_digits=10, decimal_places=2
+    )
 
 
 class LoansPerMonthSerializer(serializers.Serializer):
@@ -49,5 +51,7 @@ class OverdueReportSerializer(serializers.Serializer):
     first_name = serializers.CharField()
     last_name = serializers.CharField()
     overdue_loans_count = serializers.IntegerField()
-    total_penalty = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
+    total_penalty = serializers.DecimalField(
+        max_digits=10, decimal_places=2, allow_null=True
+    )
     oldest_overdue_date = serializers.DateTimeField(allow_null=True)

@@ -8,7 +8,16 @@ class BookCopySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BookCopy
-        fields = ["id", "book", "copy_number", "condition", "is_available", "qr_code", "qr_code_url", "created_at"]
+        fields = [
+            "id",
+            "book",
+            "copy_number",
+            "condition",
+            "is_available",
+            "qr_code",
+            "qr_code_url",
+            "created_at",
+        ]
         read_only_fields = ["id", "created_at"]
 
     def get_qr_code_url(self, obj):
@@ -24,7 +33,15 @@ class ReviewSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Review
-        fields = ["id", "reader", "reader_name", "rating", "content", "is_approved", "created_at"]
+        fields = [
+            "id",
+            "reader",
+            "reader_name",
+            "rating",
+            "content",
+            "is_approved",
+            "created_at",
+        ]
 
     def get_reader_name(self, obj):
         name = f"{obj.reader.first_name} {obj.reader.last_name}".strip()
@@ -50,13 +67,22 @@ class WishlistSerializer(serializers.ModelSerializer):
 
 class BookListSerializer(serializers.ModelSerializer):
     available_copies_count = serializers.IntegerField(read_only=True, default=0)
-    average_rating = serializers.FloatField(read_only=True, default=None, allow_null=True)
+    average_rating = serializers.FloatField(
+        read_only=True, default=None, allow_null=True
+    )
 
     class Meta:
         model = Book
         fields = [
-            "id", "title", "author", "cover_url", "genres", "language",
-            "year_published", "available_copies_count", "average_rating",
+            "id",
+            "title",
+            "author",
+            "cover_url",
+            "genres",
+            "language",
+            "year_published",
+            "available_copies_count",
+            "average_rating",
         ]
 
 
@@ -64,17 +90,33 @@ class BookDetailSerializer(serializers.ModelSerializer):
     copies = BookCopySerializer(many=True, read_only=True)
     reviews = serializers.SerializerMethodField()
     available_copies_count = serializers.IntegerField(read_only=True, default=0)
-    average_rating = serializers.FloatField(read_only=True, default=None, allow_null=True)
+    average_rating = serializers.FloatField(
+        read_only=True, default=None, allow_null=True
+    )
     reviews_count = serializers.IntegerField(read_only=True, default=0)
     reserved_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = Book
         fields = [
-            "id", "ol_id", "isbn", "title", "author", "description",
-            "cover_url", "genres", "language", "year_published",
-            "copies", "reviews", "average_rating", "reviews_count",
-            "available_copies_count", "reserved_count", "created_at", "updated_at",
+            "id",
+            "ol_id",
+            "isbn",
+            "title",
+            "author",
+            "description",
+            "cover_url",
+            "genres",
+            "language",
+            "year_published",
+            "copies",
+            "reviews",
+            "average_rating",
+            "reviews_count",
+            "available_copies_count",
+            "reserved_count",
+            "created_at",
+            "updated_at",
         ]
 
     def get_reviews(self, obj):
@@ -88,9 +130,19 @@ class BookAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = Book
         fields = [
-            "id", "ol_id", "isbn", "title", "author", "description",
-            "cover_url", "genres", "language", "year_published",
-            "copies_count", "created_at", "updated_at",
+            "id",
+            "ol_id",
+            "isbn",
+            "title",
+            "author",
+            "description",
+            "cover_url",
+            "genres",
+            "language",
+            "year_published",
+            "copies_count",
+            "created_at",
+            "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 

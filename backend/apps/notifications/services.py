@@ -40,6 +40,7 @@ def send_notification_email(
     Never raises — stores error_message on failure so callers stay clean.
     """
     from django.contrib.auth import get_user_model
+
     User = get_user_model()
 
     user = User.objects.get(pk=user_id)
@@ -67,22 +68,30 @@ def send_notification_email(
     try:
         template = TEMPLATE_MAP.get(notification_type)
         if not template:
-            raise ValueError(f"No template registered for notification type: {notification_type}")
+            raise ValueError(
+                f"No template registered for notification type: {notification_type}"
+            )
 
         # Enrich context with user info and app URLs
         render_context = {
             "user_name": user.get_full_name() or user.email,
-            "dashboard_url": getattr(settings, "FRONTEND_URL", "http://localhost:3000") + "/loans",
-            "extend_url": getattr(settings, "FRONTEND_URL", "http://localhost:3000") + "/loans",
-            "borrow_url": getattr(settings, "FRONTEND_URL", "http://localhost:3000") + "/catalog",
-            "book_url": getattr(settings, "FRONTEND_URL", "http://localhost:3000") + "/catalog",
+            "dashboard_url": getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+            + "/loans",
+            "extend_url": getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+            + "/loans",
+            "borrow_url": getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+            + "/catalog",
+            "book_url": getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+            + "/catalog",
             **context,
         }
 
         html_body = render_to_string(template, render_context)
 
         # Build subject from template
-        raw_subject = SUBJECT_MAP.get(notification_type, "Notification from Internet Library")
+        raw_subject = SUBJECT_MAP.get(
+            notification_type, "Notification from Internet Library"
+        )
         subject = raw_subject.format(**context)
 
         plain_text = _html_to_plain(render_context)
@@ -111,7 +120,12 @@ def _html_to_plain(context: dict) -> str:
     """Generate a minimal plain-text fallback from context values."""
     lines = ["Internet Library — Notification\n"]
     for key, value in context.items():
-        if isinstance(value, str) and key not in ("dashboard_url", "extend_url", "borrow_url", "book_url"):
+        if isinstance(value, str) and key not in (
+            "dashboard_url",
+            "extend_url",
+            "borrow_url",
+            "book_url",
+        ):
             lines.append(f"{key.replace('_', ' ').title()}: {value}")
     lines.append(f"\nVisit: {context.get('dashboard_url', 'http://localhost:3000')}")
     return "\n".join(lines)
@@ -133,5 +147,7 @@ def get_notification_stats() -> dict:
         "by_type": list(by_type),
         "total": Notification.objects.count(),
         "sent": Notification.objects.filter(is_sent=True).count(),
-        "failed": Notification.objects.filter(is_sent=False, error_message__gt="").count(),
+        "failed": Notification.objects.filter(
+            is_sent=False, error_message__gt=""
+        ).count(),
     }

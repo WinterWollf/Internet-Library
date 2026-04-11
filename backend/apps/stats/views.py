@@ -1,10 +1,8 @@
-from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from apps.users.permissions import IsAdmin
 
 from apps.stats.serializers import (
     DashboardStatsSerializer,
@@ -25,17 +23,23 @@ from apps.stats.services import (
     get_public_stats,
     get_reader_stats,
 )
+from apps.users.permissions import IsAdmin
 
 
 @extend_schema(
     tags=["Stats"],
     summary="Public library stats (homepage hero)",
     description="Returns total_books, total_users, and available_copies. No authentication required.",
-    responses={200: {"type": "object", "properties": {
-        "total_books": {"type": "integer"},
-        "total_users": {"type": "integer"},
-        "available_copies": {"type": "integer"},
-    }}},
+    responses={
+        200: {
+            "type": "object",
+            "properties": {
+                "total_books": {"type": "integer"},
+                "total_users": {"type": "integer"},
+                "available_copies": {"type": "integer"},
+            },
+        }
+    },
 )
 class PublicStatsView(APIView):
     permission_classes = [AllowAny]
@@ -222,7 +226,9 @@ class AdminPopularBooksView(APIView):
         "Each entry contains `type` and `count`."
     ),
     responses={
-        200: OpenApiResponse(description="Array of `{type, count}` objects for notifications in the last 30 days."),
+        200: OpenApiResponse(
+            description="Array of `{type, count}` objects for notifications in the last 30 days."
+        ),
     },
 )
 class AdminStatsNotificationsView(APIView):

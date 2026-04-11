@@ -82,7 +82,9 @@ DATABASES = {
 AUTH_USER_MODEL = "users.User"
 
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -118,8 +120,12 @@ REST_FRAMEWORK = {
 
 # JWT
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=config("ACCESS_TOKEN_LIFETIME_MINUTES", default=60, cast=int)),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=config("REFRESH_TOKEN_LIFETIME_DAYS", default=7, cast=int)),
+    "ACCESS_TOKEN_LIFETIME": timedelta(
+        minutes=config("ACCESS_TOKEN_LIFETIME_MINUTES", default=60, cast=int)
+    ),
+    "REFRESH_TOKEN_LIFETIME": timedelta(
+        days=config("REFRESH_TOKEN_LIFETIME_DAYS", default=7, cast=int)
+    ),
     "AUTH_HEADER_TYPES": ("Bearer",),
     "BLACKLIST_AFTER_ROTATION": True,
     "UPDATE_LAST_LOGIN": True,
@@ -161,19 +167,55 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "REST API for the Internet Library application",
     "VERSION": "1.0.0",
     "TAGS": [
-        {"name": "Auth", "description": "Registration, login, logout, JWT token refresh and MFA (TOTP) management."},
-        {"name": "Catalog", "description": "Public book catalog browsing and full-text search."},
-        {"name": "Loans", "description": "Borrow books, return them and extend due dates."},
-        {"name": "Penalties", "description": "View and pay late-return or damage penalties."},
-        {"name": "Reservations", "description": "Reserve books and manage pending reservations."},
+        {
+            "name": "Auth",
+            "description": "Registration, login, logout, JWT token refresh and MFA (TOTP) management.",
+        },
+        {
+            "name": "Catalog",
+            "description": "Public book catalog browsing and full-text search.",
+        },
+        {
+            "name": "Loans",
+            "description": "Borrow books, return them and extend due dates.",
+        },
+        {
+            "name": "Penalties",
+            "description": "View and pay late-return or damage penalties.",
+        },
+        {
+            "name": "Reservations",
+            "description": "Reserve books and manage pending reservations.",
+        },
         {"name": "Notifications", "description": "Reader notification history."},
-        {"name": "Stats", "description": "Personal reading statistics for the authenticated reader."},
-        {"name": "Open Library", "description": "Search and import book metadata from the Open Library API (admin only)."},
-        {"name": "Users (Admin)", "description": "Admin user listing, detail view, and block/unblock actions."},
-        {"name": "Catalog (Admin)", "description": "Admin management of books and physical copies."},
-        {"name": "Loans (Admin)", "description": "Admin oversight of all loans and penalty waiving."},
-        {"name": "Notifications (Admin)", "description": "Admin notification log and delivery statistics."},
-        {"name": "Stats (Admin)", "description": "Library-wide statistics, charts and operational reports."},
+        {
+            "name": "Stats",
+            "description": "Personal reading statistics for the authenticated reader.",
+        },
+        {
+            "name": "Open Library",
+            "description": "Search and import book metadata from the Open Library API (admin only).",
+        },
+        {
+            "name": "Users (Admin)",
+            "description": "Admin user listing, detail view, and block/unblock actions.",
+        },
+        {
+            "name": "Catalog (Admin)",
+            "description": "Admin management of books and physical copies.",
+        },
+        {
+            "name": "Loans (Admin)",
+            "description": "Admin oversight of all loans and penalty waiving.",
+        },
+        {
+            "name": "Notifications (Admin)",
+            "description": "Admin notification log and delivery statistics.",
+        },
+        {
+            "name": "Stats (Admin)",
+            "description": "Library-wide statistics, charts and operational reports.",
+        },
     ],
     "COMPONENT_SPLIT_REQUEST": True,
     "SORT_OPERATIONS": False,

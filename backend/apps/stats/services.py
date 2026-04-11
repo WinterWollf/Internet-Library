@@ -37,10 +37,16 @@ def get_dashboard_stats() -> dict:
         return cached
 
     unpaid = (
-        Penalty.objects.filter(paid_at=None, waived_by=None).aggregate(total=Sum("amount"))["total"] or 0
+        Penalty.objects.filter(paid_at=None, waived_by=None).aggregate(
+            total=Sum("amount")
+        )["total"]
+        or 0
     )
     collected = (
-        Penalty.objects.filter(paid_at__isnull=False).aggregate(total=Sum("amount"))["total"] or 0
+        Penalty.objects.filter(paid_at__isnull=False).aggregate(total=Sum("amount"))[
+            "total"
+        ]
+        or 0
     )
 
     result = {
@@ -78,7 +84,11 @@ def get_loans_per_month(months: int = 6) -> list:
     )
 
     data = [
-        {"month": entry["month"].month, "year": entry["month"].year, "count": entry["count"]}
+        {
+            "month": entry["month"].month,
+            "year": entry["month"].year,
+            "count": entry["count"],
+        }
         for entry in qs
     ]
 
@@ -88,10 +98,9 @@ def get_loans_per_month(months: int = 6) -> list:
 
 def get_most_borrowed_books(limit: int = 10):
     """Top N books by total loan count, annotated with loan_count."""
-    return (
-        Book.objects.annotate(loan_count=Count("copies__loans", distinct=True))
-        .order_by("-loan_count")[:limit]
-    )
+    return Book.objects.annotate(
+        loan_count=Count("copies__loans", distinct=True)
+    ).order_by("-loan_count")[:limit]
 
 
 def get_most_borrowed_genres(limit: int = 5) -> list:
@@ -133,20 +142,26 @@ def get_most_borrowed_genres(limit: int = 5) -> list:
 def get_reader_stats(reader) -> dict:
     """Statistics for a single reader."""
     unpaid = (
-        Penalty.objects.filter(loan__reader=reader, paid_at=None, waived_by=None).aggregate(
-            total=Sum("amount")
-        )["total"]
+        Penalty.objects.filter(
+            loan__reader=reader, paid_at=None, waived_by=None
+        ).aggregate(total=Sum("amount"))["total"]
         or 0
     )
 
     return {
-        "active_loans_count": Loan.objects.filter(reader=reader, status="active").count(),
-        "total_books_read": Loan.objects.filter(reader=reader, status="returned").count(),
+        "active_loans_count": Loan.objects.filter(
+            reader=reader, status="active"
+        ).count(),
+        "total_books_read": Loan.objects.filter(
+            reader=reader, status="returned"
+        ).count(),
         "pending_reservations_count": Reservation.objects.filter(
             reader=reader, status="pending"
         ).count(),
         "unpaid_penalties_total": unpaid,
-        "overdue_loans_count": Loan.objects.filter(reader=reader, status="overdue").count(),
+        "overdue_loans_count": Loan.objects.filter(
+            reader=reader, status="overdue"
+        ).count(),
     }
 
 
@@ -159,10 +174,21 @@ def get_overdue_report() -> list:
     overdue_users = list(
         User.objects.filter(loans__status="overdue")
         .annotate(
-            overdue_loans_count=Count("loans", filter=Q(loans__status="overdue"), distinct=True),
-            oldest_overdue_date=Min("loans__due_date", filter=Q(loans__status="overdue")),
+            overdue_loans_count=Count(
+                "loans", filter=Q(loans__status="overdue"), distinct=True
+            ),
+            oldest_overdue_date=Min(
+                "loans__due_date", filter=Q(loans__status="overdue")
+            ),
         )
-        .values("id", "email", "first_name", "last_name", "overdue_loans_count", "oldest_overdue_date")
+        .values(
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "overdue_loans_count",
+            "oldest_overdue_date",
+        )
         .distinct()
         .order_by("-oldest_overdue_date")
     )

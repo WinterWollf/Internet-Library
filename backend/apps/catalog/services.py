@@ -1,9 +1,10 @@
 import re
 from io import BytesIO
 
-import requests
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db.models import Avg, Count, Q
+
+import requests
 
 from apps.catalog.models import Book, BookCopy
 
@@ -11,6 +12,7 @@ OPEN_LIBRARY_BASE = "https://openlibrary.org"
 
 
 # ── Book catalog queries ──────────────────────────────────────────────────────
+
 
 def get_books(filters: dict):
     """
@@ -22,9 +24,11 @@ def get_books(filters: dict):
 
     if search := filters.get("search") or filters.get("q"):
         query = SearchQuery(search, config="english")
-        qs = qs.filter(search_vector=query).annotate(
-            rank=SearchRank("search_vector", query)
-        ).order_by("-rank")
+        qs = (
+            qs.filter(search_vector=query)
+            .annotate(rank=SearchRank("search_vector", query))
+            .order_by("-rank")
+        )
 
     if genre := filters.get("genre"):
         qs = qs.filter(genres__contains=[genre])
@@ -83,7 +87,7 @@ def get_book_detail(book_id: int) -> Book:
 
 # ── Open Library integration ──────────────────────────────────────────────────
 
-_OL_ID_RE = re.compile(r'^OL\d+[A-Z]$')
+_OL_ID_RE = re.compile(r"^OL\d+[A-Z]$")
 
 
 def _rebuild_search_vector(book: Book) -> None:
@@ -181,7 +185,9 @@ def _import_by_ol_id(ol_id: str) -> Book:
         author_key = author_entry.get("author", {}).get("key", "")
         if author_key:
             try:
-                a_resp = requests.get(f"{OPEN_LIBRARY_BASE}{author_key}.json", timeout=10)
+                a_resp = requests.get(
+                    f"{OPEN_LIBRARY_BASE}{author_key}.json", timeout=10
+                )
                 if a_resp.ok:
                     author = a_resp.json().get("name", "")
             except requests.RequestException:
@@ -234,27 +240,31 @@ def search_open_library(query: str) -> list:
     results = []
     for doc in response.json().get("docs", []):
         isbn_list = doc.get("isbn", [])
-        results.append({
-            "ol_id": doc.get("key", "").replace("/works/", ""),
-            "title": doc.get("title", ""),
-            "author": ", ".join(doc.get("author_name", [])),
-            "isbn": isbn_list[0] if isbn_list else None,
-            "year_published": doc.get("first_publish_year"),
-            "cover_url": (
-                f"https://covers.openlibrary.org/b/id/{doc['cover_i']}-L.jpg"
-                if doc.get("cover_i")
-                else ""
-            ),
-        })
+        results.append(
+            {
+                "ol_id": doc.get("key", "").replace("/works/", ""),
+                "title": doc.get("title", ""),
+                "author": ", ".join(doc.get("author_name", [])),
+                "isbn": isbn_list[0] if isbn_list else None,
+                "year_published": doc.get("first_publish_year"),
+                "cover_url": (
+                    f"https://covers.openlibrary.org/b/id/{doc['cover_i']}-L.jpg"
+                    if doc.get("cover_i")
+                    else ""
+                ),
+            }
+        )
     return results
 
 
 # ── QR code generation ────────────────────────────────────────────────────────
 
+
 def generate_qr_code(copy_id: int) -> None:
     """Generate a PNG QR code for a BookCopy and persist it to media storage."""
-    import qrcode  # imported here to keep top-level imports light
     from django.core.files.base import ContentFile
+
+    import qrcode  # imported here to keep top-level imports light
 
     copy = BookCopy.objects.select_related("book").get(pk=copy_id)
     book = copy.book

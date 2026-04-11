@@ -20,7 +20,9 @@ class User(AbstractUser):
     is_blocked = models.BooleanField(default=False)
     blocked_reason = models.TextField(blank=True)
     mfa_enabled = models.BooleanField(default=False)
-    gender = models.CharField(max_length=10, choices=Gender.choices, blank=True, default="")
+    gender = models.CharField(
+        max_length=10, choices=Gender.choices, blank=True, default=""
+    )
     phone = models.CharField(max_length=20, blank=True, default="")
 
     # Notification preferences

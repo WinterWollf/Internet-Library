@@ -1,16 +1,16 @@
 from datetime import timedelta
 from decimal import Decimal
 
-import pytest
 from django.core.cache import cache
 from django.utils import timezone
+
+import pytest
 from rest_framework.test import APIClient
 
 from apps.catalog.models import Book, BookCopy
 from apps.loans.models import Loan, Penalty, Reservation
 from apps.stats.services import DASHBOARD_CACHE_KEY
 from apps.users.models import User
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -105,7 +105,9 @@ class TestDashboardStats:
         assert resp.status_code == 401
 
     def test_penalty_sums_are_correct(self, client, admin_user, active_loan):
-        Penalty.objects.create(loan=active_loan, amount=Decimal("5.00"), reason="overdue")
+        Penalty.objects.create(
+            loan=active_loan, amount=Decimal("5.00"), reason="overdue"
+        )
         Penalty.objects.create(
             loan=active_loan,
             amount=Decimal("3.00"),
@@ -165,7 +167,9 @@ class TestMostBorrowedBooks:
         data = resp.json()
         assert isinstance(data, list)
         if data:
-            assert {"id", "title", "author", "cover_url", "loan_count"} <= data[0].keys()
+            assert {"id", "title", "author", "cover_url", "loan_count"} <= data[
+                0
+            ].keys()
 
     def test_ordering_descending(self, client, admin_user, book, reader_user):
         book2 = Book.objects.create(
@@ -238,7 +242,9 @@ class TestReaderStats:
         assert data["overdue_loans_count"] == 1
 
     def test_unpaid_penalty_total(self, client, reader_user, active_loan):
-        Penalty.objects.create(loan=active_loan, amount=Decimal("12.50"), reason="overdue")
+        Penalty.objects.create(
+            loan=active_loan, amount=Decimal("12.50"), reason="overdue"
+        )
         client.force_authenticate(user=reader_user)
         resp = client.get("/api/v1/stats/me/")
         data = resp.json()
@@ -272,7 +278,9 @@ class TestOverdueReport:
         assert entry is not None
         assert entry["overdue_loans_count"] >= 1
 
-    def test_excludes_non_overdue_readers(self, client, admin_user, reader_user, active_loan):
+    def test_excludes_non_overdue_readers(
+        self, client, admin_user, reader_user, active_loan
+    ):
         client.force_authenticate(user=admin_user)
         resp = client.get("/api/v1/admin/stats/overdue-report/")
         data = resp.json()
@@ -298,7 +306,9 @@ class TestCacheBehaviour:
         client.get("/api/v1/admin/stats/dashboard/")
         assert cache.get(DASHBOARD_CACHE_KEY) is not None
 
-    def test_cache_invalidated_when_new_loan_created(self, client, admin_user, book_copy, reader_user):
+    def test_cache_invalidated_when_new_loan_created(
+        self, client, admin_user, book_copy, reader_user
+    ):
         client.force_authenticate(user=admin_user)
         client.get("/api/v1/admin/stats/dashboard/")
         assert cache.get(DASHBOARD_CACHE_KEY) is not None
@@ -311,15 +321,21 @@ class TestCacheBehaviour:
         )
         assert cache.get(DASHBOARD_CACHE_KEY) is None
 
-    def test_cache_invalidated_when_new_penalty_created(self, client, admin_user, active_loan):
+    def test_cache_invalidated_when_new_penalty_created(
+        self, client, admin_user, active_loan
+    ):
         client.force_authenticate(user=admin_user)
         client.get("/api/v1/admin/stats/dashboard/")
         assert cache.get(DASHBOARD_CACHE_KEY) is not None
 
-        Penalty.objects.create(loan=active_loan, amount=Decimal("5.00"), reason="overdue")
+        Penalty.objects.create(
+            loan=active_loan, amount=Decimal("5.00"), reason="overdue"
+        )
         assert cache.get(DASHBOARD_CACHE_KEY) is None
 
-    def test_cache_invalidated_when_new_reservation_created(self, client, admin_user, book, reader_user):
+    def test_cache_invalidated_when_new_reservation_created(
+        self, client, admin_user, book, reader_user
+    ):
         client.force_authenticate(user=admin_user)
         client.get("/api/v1/admin/stats/dashboard/")
         assert cache.get(DASHBOARD_CACHE_KEY) is not None

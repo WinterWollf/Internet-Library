@@ -5,6 +5,7 @@ from config.celery import app
 def check_overdue_loans(self):
     """Mark active loans past due as overdue and create penalties. Daily 08:00."""
     from apps.loans.services import mark_overdue_loans
+
     return mark_overdue_loans()
 
 
@@ -15,7 +16,9 @@ def send_return_reminders(self):
     from apps.notifications.tasks import send_notification_email
 
     for loan in get_loans_due_soon(days=3):
-        days_remaining = max((loan.due_date.date() - __import__("datetime").date.today()).days, 0)
+        days_remaining = max(
+            (loan.due_date.date() - __import__("datetime").date.today()).days, 0
+        )
         send_notification_email.delay(
             loan.reader_id,
             "reminder",
@@ -40,7 +43,8 @@ def send_overdue_notices(self):
     )
     for loan in overdue:
         days_overdue = (
-            __import__("django.utils.timezone", fromlist=["timezone"]).timezone.now() - loan.due_date
+            __import__("django.utils.timezone", fromlist=["timezone"]).timezone.now()
+            - loan.due_date
         ).days
         penalty = loan.penalties.filter(reason=Penalty.Reason.OVERDUE).first()
         penalty_amount = str(penalty.amount) if penalty else "0.50 per day"
@@ -62,6 +66,7 @@ def send_overdue_notices(self):
 def cleanup_expired_reservations(self):
     """Cancel expired pending reservations. Every hour."""
     from apps.loans.services import cancel_expired_reservations
+
     return cancel_expired_reservations()
 
 
