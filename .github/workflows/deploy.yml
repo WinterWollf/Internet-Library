@@ -56,29 +56,29 @@ jobs:
           cache-to: type=gha,mode=max
 
       # ── SSH deployment ──────────────────────────────────────────────────
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /app
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d --no-build
-            docker compose -f docker-compose.prod.yml exec -T backend python manage.py migrate --no-input
-            docker compose -f docker-compose.prod.yml exec -T backend python manage.py collectstatic --no-input
+      # - name: Deploy via SSH
+      #   uses: appleboy/ssh-action@v1
+      #   with:
+      #     host: ${{ secrets.SSH_HOST }}
+      #     username: ${{ secrets.SSH_USER }}
+      #     key: ${{ secrets.SSH_PRIVATE_KEY }}
+      #     script: |
+      #       cd /app
+      #       docker compose -f docker-compose.prod.yml pull
+      #       docker compose -f docker-compose.prod.yml up -d --no-build
+      #       docker compose -f docker-compose.prod.yml exec -T backend python manage.py migrate --no-input
+      #       docker compose -f docker-compose.prod.yml exec -T backend python manage.py collectstatic --no-input
 
-      # ── Health check ────────────────────────────────────────────────────
-      - name: Health check
-        run: |
-          for i in 1 2 3; do
-            echo "Health check attempt $i/3..."
-            if curl --fail --silent --max-time 10 http://${{ secrets.SSH_HOST }}:8000/api/v1/health/; then
-              echo "Health check passed."
-              exit 0
-            fi
-            [ $i -lt 3 ] && sleep 10
-          done
-          echo "Health check failed after 3 attempts."
-          exit 1
+      # # ── Health check ────────────────────────────────────────────────────
+      # - name: Health check
+      #   run: |
+      #     for i in 1 2 3; do
+      #       echo "Health check attempt $i/3..."
+      #       if curl --fail --silent --max-time 10 http://${{ secrets.SSH_HOST }}:8000/api/v1/health/; then
+      #         echo "Health check passed."
+      #         exit 0
+      #       fi
+      #       [ $i -lt 3 ] && sleep 10
+      #     done
+      #     echo "Health check failed after 3 attempts."
+      #     exit 1
