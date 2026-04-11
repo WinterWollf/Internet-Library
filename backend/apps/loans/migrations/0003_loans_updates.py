@@ -13,17 +13,23 @@ class Migration(migrations.Migration):
         # Add indexes to Loan
         migrations.AddIndex(
             model_name="loan",
-            index=models.Index(fields=["reader", "status"], name="loans_loan_reader_status_idx"),
+            index=models.Index(
+                fields=["reader", "status"], name="loans_loan_reader_status_idx"
+            ),
         ),
         migrations.AddIndex(
             model_name="loan",
-            index=models.Index(fields=["copy", "status"], name="loans_loan_copy_status_idx"),
+            index=models.Index(
+                fields=["copy", "status"], name="loans_loan_copy_status_idx"
+            ),
         ),
         # Add created_at to Penalty
         migrations.AddField(
             model_name="penalty",
             name="created_at",
-            field=models.DateTimeField(auto_now_add=True, default=django.utils.timezone.now),
+            field=models.DateTimeField(
+                auto_now_add=True, default=django.utils.timezone.now
+            ),
             preserve_default=False,
         ),
         # Fix Penalty ordering
