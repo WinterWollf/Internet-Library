@@ -1,7 +1,7 @@
 from datetime import timedelta
 from decimal import Decimal
 
-from django.db.models import Q, Sum
+from django.db.models import Sum
 from django.utils import timezone
 
 from apps.catalog.models import BookCopy

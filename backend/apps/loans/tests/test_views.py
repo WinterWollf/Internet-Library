@@ -20,7 +20,6 @@ from apps.loans.services import (
     pay_penalty,
     reserve_book,
     return_book,
-    waive_penalty,
 )
 from apps.loans.tasks import check_overdue_loans
 from apps.users.models import User
@@ -302,7 +301,7 @@ class TestCheckOverdueLoansTask:
         past_due = timezone.now() - timedelta(days=3)
         copy.is_available = False
         copy.save()
-        loan = Loan.objects.create(
+        Loan.objects.create(
             copy=copy, reader=reader, due_date=past_due, status=Loan.Status.ACTIVE
         )
         with patch("apps.loans.services.mark_overdue_loans", return_value=1) as mock:

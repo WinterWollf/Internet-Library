@@ -1,9 +1,7 @@
-import os
 import re
 from io import BytesIO
 
 import requests
-from django.conf import settings
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db.models import Avg, Count, Q
 

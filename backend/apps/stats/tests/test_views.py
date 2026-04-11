@@ -8,7 +8,6 @@ from rest_framework.test import APIClient
 
 from apps.catalog.models import Book, BookCopy
 from apps.loans.models import Loan, Penalty, Reservation
-from apps.notifications.models import Notification
 from apps.stats.services import DASHBOARD_CACHE_KEY
 from apps.users.models import User
 

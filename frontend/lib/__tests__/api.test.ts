@@ -127,6 +127,10 @@ describe("401 retry and token refresh flow", () => {
     vi.resetModules();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("retries the request after a successful refresh", async () => {
     setAccessTokenCookie("expired-token");
 
@@ -187,6 +191,10 @@ describe("apiPost / apiPatch / apiDelete", () => {
     clearCookies();
     vi.resetModules();
     setAccessTokenCookie("tok");
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("apiPost sends JSON body and returns response", async () => {

@@ -1,7 +1,6 @@
 from unittest.mock import patch
 
 import pytest
-from django.urls import reverse
 from django_otp.plugins.otp_totp.models import TOTPDevice
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken

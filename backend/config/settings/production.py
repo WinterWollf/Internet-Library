@@ -1,6 +1,6 @@
 from decouple import config
 
-from .base import *
+from .base import *  # noqa: F403  # Django settings inheritance: all base settings must be available in this module
 
 DEBUG = False
 

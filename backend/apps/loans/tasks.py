@@ -32,8 +32,6 @@ def send_return_reminders(self):
 @app.task(bind=True, name="loans.send_overdue_notices")
 def send_overdue_notices(self):
     """Send overdue notices to readers. Daily 10:00."""
-    from decimal import Decimal
-
     from apps.loans.models import Loan, Penalty
     from apps.notifications.tasks import send_notification_email
 
