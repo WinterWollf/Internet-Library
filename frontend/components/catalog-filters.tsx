@@ -44,10 +44,12 @@ export default function CatalogFilters() {
 
   // Sync local state when URL changes (e.g., browser back button)
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     setSearch(searchParams.get("search") ?? "")
     setGenre(searchParams.get("genre") ?? "")
     setAvailability(searchParams.get("available") === "true" ? "available" : "all")
     setMinRating(Number(searchParams.get("min_rating") ?? 0))
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [searchParams])
 
   function applyFilters() {

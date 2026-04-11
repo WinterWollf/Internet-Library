@@ -274,6 +274,7 @@ export default function CatalogGrid() {
     if (minRating) params.set("min_rating", minRating)
     params.set("page", page.toString())
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     setError(null)
 

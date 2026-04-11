@@ -724,10 +724,10 @@ export default function BookDetailPage() {
                   <div className="space-y-0.5">
                     <p className="text-sm font-semibold text-slate-900">All copies are currently borrowed.</p>
                     {hasActiveReservation ? (
-                      <p className="text-sm text-green-600 font-medium">You have reserved this book. We'll notify you when it's available.</p>
+                      <p className="text-sm text-green-600 font-medium">You have reserved this book. We&apos;ll notify you when it&apos;s available.</p>
                     ) : (
                       <p className="text-sm text-slate-600">
-                        Reserve this book and we'll notify you when a copy becomes available.
+                        Reserve this book and we&apos;ll notify you when a copy becomes available.
                       </p>
                     )}
                   </div>
