@@ -94,7 +94,7 @@ print(f'Done — {u.email} is now an admin')
 3. Log in with the superuser credentials
 4. Go to **Users → Add User**
 5. Fill in the form and set **Role** to `admin`
-6. Save
+6. Save 
 
 ---
 
