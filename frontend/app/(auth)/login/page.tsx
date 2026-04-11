@@ -7,7 +7,7 @@
 // Auth: public (unauthenticated only — middleware redirects to /catalog if already logged in)
 // TODO: implement Forgot password flow; Resend MFA code
 
-import { Suspense, useState, useRef, useCallback } from "react";
+import { Suspense, useState, useRef, useCallback, useEffect } from "react";
 import type { KeyboardEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -136,6 +136,12 @@ function AuthPageInner() {
   const { login, register, verifyMfa } = useAuth();
 
   const redirectTo = searchParams.get("redirect") ?? "/catalog";
+
+  useEffect(() => {
+    if (searchParams.get("message") === "account_deleted") {
+      toast.success("Your account has been permanently deleted.");
+    }
+  }, [searchParams]);
 
   // view state — honour ?tab=register from navbar Register button
   const [view, setView] = useState<AuthView>("tabs");

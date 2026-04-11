@@ -564,6 +564,7 @@ function NotificationsPanel({ profile }: { profile: UserProfile }) {
 
 function DangerZonePanel() {
   const router = useRouter()
+  const { logout } = useAuth()
   const [deleteConfirm, setDeleteConfirm] = useState("")
   const [blocking, setBlocking]           = useState(false)
   const [deleting, setDeleting]           = useState(false)
@@ -586,11 +587,10 @@ function DangerZonePanel() {
     setDeleting(true)
     try {
       await apiDelete("/auth/delete-account/")
-      toast.success("Account deleted. Goodbye.")
-      setTimeout(() => { router.push("/") }, 2000)
+      await logout()
+      router.push("/login?message=account_deleted")
     } catch (err: unknown) {
       toast.error((err as Error).message ?? "Failed to delete account")
-    } finally {
       setDeleting(false)
     }
   }

@@ -401,15 +401,38 @@ class BlockSelfView(APIView):
 @extend_schema(
     tags=["Auth"],
     summary="Delete own account",
-    description="Permanently deletes the authenticated user's account and all associated data.",
+    description=(
+        "Soft-deletes the authenticated user's account: deactivates it and anonymises "
+        "personal data so that FK-protected records (loans, penalties, reservations) are "
+        "preserved for audit purposes. The user can no longer log in after this call."
+    ),
     responses={
-        204: OpenApiResponse(description="Account deleted."),
+        200: OpenApiResponse(description="Account deleted."),
     },
 )
 class DeleteAccountView(APIView):
     def delete(self, request):
-        request.user.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        user = request.user
+        # Soft delete — anonymise PII and deactivate instead of hard-deleting.
+        # Hard delete would violate PROTECT FK constraints on Loan / Penalty /
+        # Reservation rows that reference this user.
+        user.is_active = False
+        user.email = f"deleted_{user.id}@deleted.local"
+        user.first_name = "Deleted"
+        user.last_name = "User"
+        user.phone = ""
+        user.set_unusable_password()
+        user.save(
+            update_fields=[
+                "is_active",
+                "email",
+                "first_name",
+                "last_name",
+                "phone",
+                "password",
+            ]
+        )
+        return Response({"deleted": True}, status=status.HTTP_200_OK)
 
 
 # ── Admin user management ─────────────────────────────────────────────────────
