@@ -22,7 +22,7 @@ gunicorn==23.0.0
 # Utilities
 python-decouple==3.8
 requests==2.32.3
-Pillow==11.2.1
+Pillow==12.2.0
 qrcode==8.1
 
 # Formatting / linting
