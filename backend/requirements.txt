@@ -7,7 +7,7 @@ django-otp==1.5.4
 django-filter==25.1
 django-cors-headers==4.7.0
 django-celery-beat==2.8.0
-drf-spectacular==0.28.0
+drf-spectacular==0.29.0
 
 # Database
 psycopg2==2.9.10
