@@ -1,9 +1,3 @@
-// [v0 import] Component: HowItWorks
-// Location: frontend/components/how-it-works.tsx
-// Connect to: N/A — static informational section
-// Mock data: step descriptions are hardcoded
-// Auth: public
-// TODO: none
 import { Search, BookMarked, RotateCcw } from "lucide-react";
 
 const steps = [

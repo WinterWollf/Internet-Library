@@ -22,6 +22,7 @@ const BASE_URL =
 
 // ── Cookie helpers ────────────────────────────────────────────────────────────
 
+/** Read the access_token cookie from next/headers (SSR) or document.cookie (browser). */
 async function readAccessToken(): Promise<string | undefined> {
   if (typeof window === "undefined") {
     // Server-side: use next/headers
@@ -34,6 +35,12 @@ async function readAccessToken(): Promise<string | undefined> {
   return match ? decodeURIComponent(match[1]) : undefined;
 }
 
+/**
+ * Attempt to refresh the access token using the stored refresh token.
+ * SSR: calls Django's token/refresh directly and writes the new tokens via setTokens.
+ * Browser: delegates to the Next.js /api/auth/refresh route handler (reads httpOnly cookie).
+ * Returns true on success, false if the refresh token is absent or rejected.
+ */
 async function refreshAccessToken(): Promise<boolean> {
   if (typeof window === "undefined") {
     // Server-side: read httpOnly refresh_token and call Django directly
@@ -65,6 +72,7 @@ async function refreshAccessToken(): Promise<boolean> {
 
 // ── Error parsing ─────────────────────────────────────────────────────────────
 
+/** Parse a non-OK response into an ApiError, reading `error`, `code`, or `detail` from the JSON body. */
 async function parseError(res: Response): Promise<ApiError> {
   let body: { error?: string; code?: string; detail?: string } = {};
   try {
@@ -81,6 +89,8 @@ async function parseError(res: Response): Promise<ApiError> {
 
 // ── Core request function ─────────────────────────────────────────────────────
 
+// isRetry prevents infinite loops: on a second 401 we clear tokens and redirect instead
+// of trying to refresh again.
 async function request<T>(
   method: string,
   path: string,
@@ -140,18 +150,22 @@ async function request<T>(
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
+/** Send a GET request; returns the parsed JSON body typed as T. */
 export function apiGet<T>(path: string): Promise<T> {
   return request<T>("GET", path);
 }
 
+/** Send a POST request with an optional JSON body; returns the parsed response typed as T. */
 export function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return request<T>("POST", path, body);
 }
 
+/** Send a PATCH request with an optional partial JSON body; returns the updated resource typed as T. */
 export function apiPatch<T>(path: string, body?: unknown): Promise<T> {
   return request<T>("PATCH", path, body);
 }
 
+/** Send a DELETE request; body is optional (e.g. for wishlist removal by book_id). Returns T (often void). */
 export function apiDelete<T = void>(path: string, body?: unknown): Promise<T> {
   return request<T>("DELETE", path, body);
 }

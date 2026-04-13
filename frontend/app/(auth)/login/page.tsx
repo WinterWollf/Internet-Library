@@ -1,12 +1,5 @@
 "use client";
 
-// [v0 import] Component: AuthPage (Login / Register / MFA)
-// Location: frontend/app/(auth)/login/page.tsx  →  route: /login
-// Connect to: POST /api/v1/auth/login/ — Sign in; POST /api/v1/auth/register/ — Create account; POST /api/v1/auth/mfa/verify/ — MFA verify
-// Mock data: none — all forms wired to real API
-// Auth: public (unauthenticated only — middleware redirects to /catalog if already logged in)
-// TODO: implement Forgot password flow; Resend MFA code
-
 import { Suspense, useState, useRef, useCallback, useEffect } from "react";
 import type { KeyboardEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -22,6 +15,7 @@ import { useAuth } from "@/lib/auth-context";
 
 // ── Password strength ─────────────────────────────────────────────────────────
 
+/** Score password strength 0–4 based on length, uppercase, digits, and special chars. */
 function getStrength(password: string): number {
   let score = 0;
   if (password.length >= 8) score++;
@@ -40,6 +34,7 @@ const strengthColor = [
   "bg-green-500",
 ];
 
+/** Render a 4-segment coloured bar below the password field showing the current strength score. */
 function PasswordStrengthBar({ password }: { password: string }) {
   const strength = getStrength(password);
   return (
@@ -67,6 +62,10 @@ function PasswordStrengthBar({ password }: { password: string }) {
 
 // ── OTP input row ─────────────────────────────────────────────────────────────
 
+/**
+ * Six individual single-digit inputs that auto-advance on input and move focus back on Backspace.
+ * Props: `value` — array of 6 digit strings; `onChange` — called with the updated array.
+ */
 function OTPInput({
   value,
   onChange,
@@ -76,6 +75,7 @@ function OTPInput({
 }) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
 
+  /** On Backspace: clear the current digit or move focus to the previous box if already empty. */
   const handleKey = (e: KeyboardEvent<HTMLInputElement>, idx: number) => {
     if (e.key === "Backspace") {
       if (value[idx]) {
@@ -88,6 +88,7 @@ function OTPInput({
     }
   };
 
+  /** Accept only the last digit typed, update state, and advance focus to the next box. */
   const handleChange = (raw: string, idx: number) => {
     const digit = raw.replace(/\D/g, "").slice(-1);
     const next = [...value];
@@ -119,6 +120,7 @@ function OTPInput({
 
 // ── Field error helper ────────────────────────────────────────────────────────
 
+/** Render a small red validation message below a field, or nothing if msg is undefined. */
 function FieldError({ msg }: { msg?: string }) {
   if (!msg) return null;
   return <p className="text-xs text-red-500 mt-1">{msg}</p>;
@@ -135,6 +137,7 @@ function AuthPageInner() {
   const searchParams = useSearchParams();
   const { login, register, verifyMfa } = useAuth();
 
+  // After a successful login/register, go to the originally requested page or catalog.
   const redirectTo = searchParams.get("redirect") ?? "/catalog";
 
   useEffect(() => {
@@ -175,6 +178,7 @@ function AuthPageInner() {
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
+  /** Client-side validate, call login(), then redirect or switch to MFA view. */
   const handleLogin = useCallback(async () => {
     setLoginErrors({});
     if (!loginEmail) {
@@ -188,6 +192,8 @@ function AuthPageInner() {
     setLoginLoading(true);
     try {
       const result = await login(loginEmail, loginPassword);
+      // If the account has MFA enabled, the backend returns mfa_token instead of JWT tokens.
+      // We switch to the MFA view; verifyMfa() exchanges the token for full JWT tokens.
       if (result.mfa_required) {
         setView("mfa");
       } else {
@@ -205,6 +211,7 @@ function AuthPageInner() {
     }
   }, [login, loginEmail, loginPassword, redirectTo, router]);
 
+  /** Client-side validate all register fields, call register(), then redirect to /catalog. */
   const handleRegister = useCallback(async () => {
     setRegErrors({});
     const errors: Record<string, string> = {};
@@ -250,6 +257,7 @@ function AuthPageInner() {
     router,
   ]);
 
+  /** Join the 6 OTP digits and call verifyMfa(); handle expired token by returning to login tab. */
   const handleVerifyMfa = useCallback(async () => {
     setMfaLoading(true);
     try {
@@ -258,6 +266,7 @@ function AuthPageInner() {
     } catch (err: unknown) {
       const e = err as { status?: number; code?: string; message?: string };
       if (e.code === "MFA_EXPIRED") {
+        // mfa_token has a 5-minute server-side TTL — send the user back to log in again.
         toast.error("Session expired. Please log in again.");
         setView("tabs");
         setOtpDigits(["", "", "", "", "", ""]);
@@ -729,6 +738,7 @@ function AuthPageInner() {
   );
 }
 
+/** Wrap AuthPageInner in a Suspense boundary required by useSearchParams() in the App Router. */
 export default function AuthPage() {
   return (
     <Suspense>

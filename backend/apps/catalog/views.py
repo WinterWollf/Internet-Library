@@ -40,9 +40,12 @@ from apps.users.permissions import IsAdmin
     responses={200: BookListSerializer(many=True)},
 )
 class BookListView(APIView):
+    """GET /catalog/books/ — publicly accessible paginated book list with filtering and search."""
+
     permission_classes = [AllowAny]
 
     def get(self, request):
+        """Pass all query params to get_books() which handles filtering, search, and ordering."""
         qs = get_books(request.query_params)
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(qs, request)
@@ -65,9 +68,12 @@ class BookListView(APIView):
     },
 )
 class BookDetailView(APIView):
+    """GET /catalog/books/<pk>/ — public single-book detail including copies and approved reviews."""
+
     permission_classes = [AllowAny]
 
     def get(self, request, pk):
+        """Fetch book with prefetched copies and reviews; raise 404 if not found."""
         try:
             book = get_book_detail(pk)
         except Book.DoesNotExist:
@@ -100,9 +106,12 @@ class BookDetailView(APIView):
     },
 )
 class BookSearchView(APIView):
+    """GET /catalog/books/search/?q=<query> — public full-text search using PostgreSQL SearchVector."""
+
     permission_classes = [AllowAny]
 
     def get(self, request):
+        """Require non-empty `q` param; delegate to get_books() which applies the SearchVector filter."""
         q = request.query_params.get("q", "").strip()
         if not q:
             raise ValidationError(
@@ -138,9 +147,12 @@ class BookSearchView(APIView):
     },
 )
 class OpenLibrarySearchView(APIView):
+    """GET /catalog/open-library/search/?q=<query> — proxy search to Open Library API. Admin only, read-only."""
+
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
+        """Forward query to Open Library and return raw metadata; nothing is saved to the local DB."""
         q = request.query_params.get("q", "").strip()
         if not q:
             raise ValidationError(
@@ -165,9 +177,12 @@ class OpenLibrarySearchView(APIView):
     },
 )
 class OpenLibraryImportView(APIView):
+    """POST /catalog/open-library/import/<identifier>/ — enqueue async import of a book by ISBN. Admin only."""
+
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def post(self, request, identifier):
+        """Queue import_book_task via Celery; returns 202 immediately — poll the catalog to confirm."""
         from apps.catalog.tasks import import_book_task
 
         import_book_task.delay(identifier)
@@ -206,12 +221,16 @@ class OpenLibraryImportView(APIView):
     ),
 )
 class ReviewListCreateView(APIView):
+    """GET /reviews/?book=<id> (public) or POST /reviews/ (auth) — list approved reviews or submit a new one."""
+
     def get_permissions(self):
+        """Allow anyone to read reviews; require auth to submit one."""
         if self.request.method == "POST":
             return [permissions.IsAuthenticated()]
         return [permissions.AllowAny()]
 
     def get(self, request):
+        """Return paginated approved reviews for the given book ID (required query param)."""
         book_id = request.query_params.get("book")
         if not book_id:
             raise ValidationError(
@@ -225,6 +244,7 @@ class ReviewListCreateView(APIView):
         return paginator.get_paginated_response(ReviewSerializer(page, many=True).data)
 
     def post(self, request):
+        """Create a new review; enforce one-per-reader-per-book and leave it pending approval."""
         serializer = ReviewCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         book_id = serializer.validated_data["book"]
@@ -250,11 +270,12 @@ class ReviewListCreateView(APIView):
 
 
 class AdminReviewListView(APIView):
-    """List all pending reviews for moderation."""
+    """GET /admin/reviews/ — list all reviews, optionally filtered by approval status. Admin only."""
 
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
+        """Return paginated reviews; filter with ?approved=true|false to target moderation queue."""
         approved = request.query_params.get("approved")
         qs = Review.objects.select_related("book", "reader").order_by("-created_at")
         if approved == "false":
@@ -267,33 +288,38 @@ class AdminReviewListView(APIView):
 
 
 class AdminReviewDetailView(APIView):
-    """Approve or delete a review."""
+    """POST /admin/reviews/<pk>/approve/ or DELETE /admin/reviews/<pk>/ — approve or remove a review. Admin only."""
 
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def _get(self, pk):
+        """Fetch a Review by PK or raise 404."""
         try:
             return Review.objects.get(pk=pk)
         except Review.DoesNotExist:
             raise NotFound({"error": "Review not found.", "code": "REVIEW_NOT_FOUND"})
 
     def post(self, request, pk):
-        """Approve a review."""
+        """Set is_approved=True, making the review visible on the public book detail."""
         review = self._get(pk)
         review.is_approved = True
         review.save(update_fields=["is_approved"])
         return Response(ReviewSerializer(review).data)
 
     def delete(self, request, pk):
+        """Permanently delete the review record."""
         review = self._get(pk)
         review.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class WishlistView(APIView):
+    """GET/POST/DELETE /catalog/wishlist/ — manage the authenticated reader's wishlist."""
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        """Return the paginated wishlist for the current user."""
         qs = Wishlist.objects.filter(reader=request.user).select_related("book")
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(qs, request)
@@ -302,6 +328,7 @@ class WishlistView(APIView):
         )
 
     def post(self, request):
+        """Add a book to the wishlist (idempotent — returns 200 if already present, 201 if new)."""
         book_id = request.data.get("book_id")
         if not book_id:
             return Response(
@@ -319,6 +346,7 @@ class WishlistView(APIView):
         )
 
     def delete(self, request):
+        """Remove a book from the wishlist; requires `book_id` in the request body."""
         book_id = request.data.get("book_id")
         if not book_id:
             return Response(
@@ -355,9 +383,12 @@ class WishlistView(APIView):
     ),
 )
 class AdminBookListView(APIView):
+    """GET /admin/catalog/books/ or POST — list all books or create one. Admin only."""
+
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
+        """Return a paginated admin view of all books."""
         qs = Book.objects.all()
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(qs, request)
@@ -365,6 +396,7 @@ class AdminBookListView(APIView):
         return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
+        """Create a new book record; returns 400 on validation error."""
         serializer = BookAdminSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -403,19 +435,24 @@ class AdminBookListView(APIView):
     ),
 )
 class AdminBookDetailView(APIView):
+    """GET/PATCH/DELETE /admin/catalog/books/<pk>/ — retrieve, update, or delete a single book. Admin only."""
+
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def _get_book(self, pk):
+        """Fetch a Book by PK or raise 404."""
         try:
             return Book.objects.get(pk=pk)
         except Book.DoesNotExist:
             raise NotFound({"error": "Book not found.", "code": "BOOK_NOT_FOUND"})
 
     def get(self, request, pk):
+        """Return full admin-level book detail."""
         book = self._get_book(pk)
         return Response(BookAdminSerializer(book).data)
 
     def patch(self, request, pk):
+        """Partially update book metadata (title, author, genres, etc.)."""
         book = self._get_book(pk)
         serializer = BookAdminSerializer(book, data=request.data, partial=True)
         if not serializer.is_valid():
@@ -424,6 +461,7 @@ class AdminBookDetailView(APIView):
         return Response(serializer.data)
 
     def delete(self, request, pk):
+        """Permanently delete the book and cascade-delete all its copies."""
         book = self._get_book(pk)
         book.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -448,9 +486,12 @@ class AdminBookDetailView(APIView):
     ),
 )
 class AdminCopyListView(APIView):
+    """GET /admin/catalog/copies/ or POST — list all physical copies or add one. Admin only."""
+
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
+        """Return a paginated list of all copies across all books."""
         qs = BookCopy.objects.select_related("book").all()
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(qs, request)
@@ -458,6 +499,7 @@ class AdminCopyListView(APIView):
         return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
+        """Create a new physical copy for an existing book."""
         serializer = BookCopySerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -495,19 +537,24 @@ class AdminCopyListView(APIView):
     ),
 )
 class AdminCopyDetailView(APIView):
+    """GET/PATCH/DELETE /admin/catalog/copies/<pk>/ — retrieve, update, or delete a single copy. Admin only."""
+
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def _get_copy(self, pk):
+        """Fetch a BookCopy with its parent Book pre-selected, or raise 404."""
         try:
             return BookCopy.objects.select_related("book").get(pk=pk)
         except BookCopy.DoesNotExist:
             raise NotFound({"error": "Copy not found.", "code": "COPY_NOT_FOUND"})
 
     def get(self, request, pk):
+        """Return full detail for a single physical copy."""
         copy = self._get_copy(pk)
         return Response(BookCopySerializer(copy).data)
 
     def patch(self, request, pk):
+        """Partially update condition or availability for the copy."""
         copy = self._get_copy(pk)
         serializer = BookCopySerializer(copy, data=request.data, partial=True)
         if not serializer.is_valid():
@@ -516,6 +563,7 @@ class AdminCopyDetailView(APIView):
         return Response(serializer.data)
 
     def delete(self, request, pk):
+        """Permanently delete the physical copy record."""
         copy = self._get_copy(pk)
         copy.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

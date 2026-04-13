@@ -25,7 +25,7 @@ from apps.users.serializers import (
 
 
 def _build_totp_uri(device: TOTPDevice) -> str:
-    """Build a standard otpauth:// URI for authenticator apps."""
+    """Build a standard otpauth:// URI recognised by Google Authenticator, Authy, etc."""
     issuer = "Internet Library"
     label = urllib.parse.quote(f"{issuer}:{device.user.email}", safe="")
     secret = base64.b32encode(device.bin_key).decode("utf-8")
@@ -80,9 +80,12 @@ def _token_pair(user):
 
 
 class RegisterView(APIView):
+    """POST /auth/register/ — create a new reader account and return JWT tokens."""
+
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
+        """Validate registration data, create user, and return access + refresh tokens."""
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = services.register_user(serializer.validated_data)
@@ -117,9 +120,12 @@ class RegisterView(APIView):
     },
 )
 class LoginView(APIView):
+    """POST /auth/login/ — authenticate by email/password and return JWT tokens or MFA challenge."""
+
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
+        """Authenticate the user; if MFA is enabled return a short-lived mfa_token instead of JWTs."""
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -167,7 +173,10 @@ class LoginView(APIView):
     },
 )
 class LogoutView(APIView):
+    """POST /auth/logout/ — blacklist the provided refresh token. Requires authentication."""
+
     def post(self, request):
+        """Blacklist the refresh token so it can no longer generate new access tokens."""
         refresh_token = request.data.get("refresh")
         if not refresh_token:
             return Response(
@@ -199,10 +208,13 @@ class LogoutView(APIView):
     ),
 )
 class ProfileView(generics.RetrieveUpdateAPIView):
+    """GET/PATCH /auth/profile/ — retrieve or partially update the authenticated user's profile."""
+
     serializer_class = UserProfileSerializer
     http_method_names = ["get", "patch"]
 
     def get_object(self):
+        """Return the currently authenticated user as the object to read/update."""
         return self.request.user
 
 
@@ -219,7 +231,10 @@ class ProfileView(generics.RetrieveUpdateAPIView):
     },
 )
 class ChangePasswordView(APIView):
+    """POST /auth/change-password/ — update password after verifying the current one."""
+
     def post(self, request):
+        """Verify current password, then set the new one. Requires authentication."""
         serializer = ChangePasswordSerializer(
             data=request.data, context={"request": request}
         )
@@ -247,7 +262,10 @@ class ChangePasswordView(APIView):
     },
 )
 class MfaSetupView(APIView):
+    """POST /auth/mfa/setup/ — create a new TOTP device and return the QR code PNG."""
+
     def post(self, request):
+        """Delete any unconfirmed devices, create a fresh TOTP device, return QR code and URI."""
         user = request.user
         # Remove any stale unconfirmed devices before starting fresh
         TOTPDevice.objects.filter(user=user, confirmed=False).delete()
@@ -274,7 +292,10 @@ class MfaSetupView(APIView):
     },
 )
 class MfaVerifyView(APIView):
+    """POST /auth/mfa/verify/ — confirm a TOTP code to activate MFA on the account."""
+
     def post(self, request):
+        """Verify the 6-digit code against the pending device and mark it confirmed."""
         code = request.data.get("code", "")
         user = request.user
 
@@ -306,7 +327,10 @@ class MfaVerifyView(APIView):
     },
 )
 class MfaDisableView(APIView):
+    """POST /auth/mfa/disable/ — remove all TOTP devices and disable MFA for the account."""
+
     def post(self, request):
+        """Delete all TOTP devices and set mfa_enabled=False on the user."""
         TOTPDevice.objects.filter(user=request.user).delete()
         services.disable_mfa(request.user)
         return Response({"detail": "MFA disabled."})
@@ -333,9 +357,12 @@ class MfaDisableView(APIView):
     },
 )
 class MfaLoginView(APIView):
+    """POST /auth/mfa/login/ — second step of MFA login: exchange mfa_token + TOTP code for JWTs."""
+
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
+        """Validate the signed mfa_token (5-min TTL) and TOTP code; return full JWT tokens on success."""
         mfa_token = request.data.get("mfa_token", "")
         code = request.data.get("code", "")
 
@@ -390,7 +417,10 @@ class MfaLoginView(APIView):
     responses={200: OpenApiResponse(description="Account blocked.")},
 )
 class BlockSelfView(APIView):
+    """POST /auth/block-self/ — reader voluntarily blocks their own account."""
+
     def post(self, request):
+        """Set is_blocked=True on the authenticated user; re-activation requires an admin."""
         user = request.user
         user.is_blocked = True
         user.blocked_reason = "Self-blocked by user"
@@ -411,7 +441,10 @@ class BlockSelfView(APIView):
     },
 )
 class DeleteAccountView(APIView):
+    """DELETE /auth/delete-account/ — soft-delete the authenticated user's account."""
+
     def delete(self, request):
+        """Anonymise PII and deactivate the account; hard-delete is blocked by FK constraints."""
         user = request.user
         # Soft delete — anonymise PII and deactivate instead of hard-deleting.
         # Hard delete would violate PROTECT FK constraints on Loan / Penalty /
@@ -449,12 +482,15 @@ class DeleteAccountView(APIView):
     responses={200: UserAdminSerializer(many=True)},
 )
 class AdminUserListView(generics.ListAPIView):
+    """GET /admin/users/ — paginated user list with role/block filters. Admin only."""
+
     serializer_class = UserAdminSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
     filterset_fields = ["role", "is_blocked"]
     search_fields = ["email", "first_name", "last_name"]
 
     def get_queryset(self):
+        """Return all users; filtering/search is applied by DRF filter backends."""
         return User.objects.all()
 
 
@@ -467,6 +503,8 @@ class AdminUserListView(generics.ListAPIView):
     },
 )
 class AdminUserDetailView(generics.RetrieveAPIView):
+    """GET /admin/users/<pk>/ — full admin-level detail for a single user. Admin only."""
+
     serializer_class = UserAdminSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
     queryset = User.objects.all()
@@ -486,9 +524,12 @@ class AdminUserDetailView(generics.RetrieveAPIView):
     },
 )
 class AdminBlockUserView(APIView):
+    """POST /admin/users/<pk>/block/ — block a user account with a required reason. Admin only."""
+
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
 
     def post(self, request, pk):
+        """Block the user identified by pk; `reason` field in request body is required."""
         reason = request.data.get("reason", "").strip()
         if not reason:
             return Response(
@@ -515,9 +556,12 @@ class AdminBlockUserView(APIView):
     },
 )
 class AdminUnblockUserView(APIView):
+    """POST /admin/users/<pk>/unblock/ — restore access for a blocked user. Admin only."""
+
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
 
     def post(self, request, pk):
+        """Clear is_blocked and blocked_reason for the given user."""
         try:
             user = services.unblock_user(pk, request.user)
         except User.DoesNotExist:

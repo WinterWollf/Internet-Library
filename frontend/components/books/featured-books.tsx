@@ -1,8 +1,3 @@
-// [v0 import] Component: FeaturedBooks
-// Location: frontend/components/books/featured-books.tsx
-// Connect to: GET /api/v1/catalog/books/ — fetches 4 newest books server-side
-// Auth: public (server component — no JWT needed)
-
 import { Star, BookOpen } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";

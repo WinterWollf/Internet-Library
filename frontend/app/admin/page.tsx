@@ -1,10 +1,5 @@
 "use client"
 
-// [v0 import] Component: AdminPage
-// Location: frontend/app/admin/page.tsx
-// Connect to: GET /api/v1/admin/stats/dashboard/, GET /api/v1/admin/stats/loans-per-month/, GET /api/v1/admin/stats/most-borrowed-genres/, GET /api/v1/admin/users/, GET /api/v1/admin/loans/, GET /api/v1/admin/stats/overdue-report/
-// Auth: requires JWT token (admin role) — enforced by middleware.ts
-// Mock data: removed — all sections wired to real API
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import Image from "next/image"

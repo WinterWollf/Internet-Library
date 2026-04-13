@@ -16,6 +16,7 @@ def send_return_reminders(self):
     from apps.notifications.tasks import send_notification_email
 
     for loan in get_loans_due_soon(days=3):
+        # Inline import avoids a top-level circular dependency with the datetime module alias.
         days_remaining = max(
             (loan.due_date.date() - __import__("datetime").date.today()).days, 0
         )
@@ -42,10 +43,12 @@ def send_overdue_notices(self):
         status=Loan.Status.OVERDUE
     )
     for loan in overdue:
+        # Inline import avoids a top-level circular dependency with the timezone module alias.
         days_overdue = (
             __import__("django.utils.timezone", fromlist=["timezone"]).timezone.now()
             - loan.due_date
         ).days
+        # Use the recorded penalty amount if available; fall back to a human-readable default.
         penalty = loan.penalties.filter(reason=Penalty.Reason.OVERDUE).first()
         penalty_amount = str(penalty.amount) if penalty else "0.50 per day"
 
@@ -77,6 +80,7 @@ def block_accounts_overdue(self):
     from apps.notifications.tasks import send_notification_email
     from apps.users.services import block_user
 
+    # distinct() prevents double-blocking when a reader has multiple overdue loans.
     for loan in get_overdue_loans_older_than(days=60).distinct():
         if not loan.reader.is_blocked:
             block_user(

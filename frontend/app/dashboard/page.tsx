@@ -1,18 +1,5 @@
 "use client"
 
-// Location: frontend/app/dashboard/page.tsx
-// Connect to:
-//   GET  /api/v1/loans/active/       — active + overdue loans
-//   GET  /api/v1/loans/history/      — returned loans (paginated)
-//   GET  /api/v1/penalties/          — reader penalties
-//   GET  /api/v1/reservations/       — reader reservations
-//   GET  /api/v1/stats/me/           — reader stats
-//   POST /api/v1/loans/extend/       — extend loan
-//   POST /api/v1/loans/return/       — return book
-//   POST /api/v1/penalties/{id}/pay/ — pay penalty
-//   DELETE /api/v1/reservations/{id}/— cancel reservation
-// Auth: requires JWT token (reader role)
-
 import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"

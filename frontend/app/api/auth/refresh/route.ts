@@ -1,11 +1,3 @@
-/**
- * POST /api/auth/refresh
- *
- * Client-side token refresh proxy.
- * Reads the httpOnly refresh_token cookie (inaccessible to browser JS),
- * calls Django's token/refresh endpoint, and sets new cookies on the response.
- */
-
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 

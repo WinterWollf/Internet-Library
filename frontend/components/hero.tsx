@@ -1,11 +1,5 @@
 "use client";
 
-// [v0 import] Component: Hero
-// Location: frontend/components/hero.tsx
-// Connect to: GET /api/v1/catalog/books/?ordering=-created_at&page_size=5 — real covers for book stack
-//             GET /api/v1/stats/public/ — real stats row
-// Auth: public
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";

@@ -1,9 +1,4 @@
-// [v0 import] Component: Footer
-// Location: frontend/components/footer.tsx
-// Connect to: N/A — static footer
-// Mock data: Privacy Policy and Contact hrefs are "#" placeholders
-// Auth: public
-// TODO: replace "#" hrefs with real routes (/privacy, /contact)
+
 import { BookOpen } from "lucide-react";
 
 export default function Footer() {

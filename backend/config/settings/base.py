@@ -17,9 +17,11 @@ INSTALLED_APPS = [
     # Third-party
     "rest_framework",
     "rest_framework_simplejwt",
+    # token_blacklist enables refresh-token invalidation on logout/rotation.
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "django_filters",
+    # django_celery_beat stores the beat schedule in the DB, enabling runtime edits.
     "django_celery_beat",
     "drf_spectacular",
     "allauth",
@@ -37,6 +39,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # CorsMiddleware must be placed before CommonMiddleware.
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -45,6 +48,7 @@ MIDDLEWARE = [
     "django_otp.middleware.OTPMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # BlockedUserMiddleware returns 403 for any authenticated user with is_blocked=True.
     "apps.users.middleware.BlockedUserMiddleware",
 ]
 
@@ -68,6 +72,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
+# PostgreSQL is required — the catalog uses ArrayField and SearchVectorField.
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -79,6 +84,7 @@ DATABASES = {
     }
 }
 
+# Points Django's auth system at our custom User model (email-based login).
 AUTH_USER_MODEL = "users.User"
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -103,6 +109,8 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # DRF
+# All endpoints require authentication by default; public views override with AllowAny.
+# PAGE_SIZE=20 is the default page size for all paginated list responses.
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -119,6 +127,9 @@ REST_FRAMEWORK = {
 }
 
 # JWT
+# Defaults: access=60 min, refresh=7 days. Override via env vars.
+# BLACKLIST_AFTER_ROTATION: old refresh token is invalidated on every rotation —
+#   requires rest_framework_simplejwt.token_blacklist in INSTALLED_APPS and migrated.
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(
         minutes=config("ACCESS_TOKEN_LIFETIME_MINUTES", default=60, cast=int)
@@ -139,7 +150,7 @@ CACHES = {
     }
 }
 
-# Celery
+# Celery — broker and result backend both use Redis db/0 (db/1 is reserved for cache).
 CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://redis:6379/0")
 CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default="redis://redis:6379/0")
 CELERY_ACCEPT_CONTENT = ["json"]
@@ -147,7 +158,7 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 
-# Email
+# Email — SMTP with TLS. Override EMAIL_BACKEND in development (e.g. console backend).
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = config("EMAIL_HOST", default="localhost")
 EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
@@ -222,9 +233,11 @@ SPECTACULAR_SETTINGS = {
 }
 
 # CORS
+# Dev-only origins. Add production frontend URL in production settings.
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+# Must be True so the browser sends the httpOnly refresh_token cookie cross-origin.
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False

@@ -1,8 +1,3 @@
-// [v0 import] Component: CatalogPage
-// Location: frontend/app/catalog/page.tsx
-// Connect to: GET /api/v1/catalog/books/ — via CatalogGrid and CatalogFilters children
-// Auth: public
-
 import { Suspense } from "react"
 import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"

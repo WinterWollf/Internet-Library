@@ -1,8 +1,3 @@
-// [v0 import] Component: RootLayout
-// Location: frontend/app/layout.tsx
-// Connect to: N/A — shell layout, no direct API
-// Mock data: none
-// Auth: public
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";

@@ -1,10 +1,5 @@
 "use client";
 
-// [v0 import] Component: Navbar
-// Location: frontend/components/navbar.tsx
-// Connect to: POST /api/v1/auth/logout/ — Logout option in user menu
-// Auth: public shell; auth-aware (shows user menu when logged in)
-
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { BookOpen, Menu, X, User, LogOut, LayoutDashboard } from "lucide-react";

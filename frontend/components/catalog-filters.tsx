@@ -1,10 +1,5 @@
 "use client"
 
-// [v0 import] Component: CatalogFilters
-// Location: frontend/components/catalog-filters.tsx
-// Connect to: GET /api/v1/catalog/books/?search=&genre=&available=&min_rating= — filter params passed via URL to CatalogGrid
-// Auth: public
-
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Search, Star } from "lucide-react"

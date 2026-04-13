@@ -1,10 +1,5 @@
 "use client"
 
-// [v0 import] Component: CatalogGrid
-// Location: frontend/components/catalog-grid.tsx
-// Connect to: GET /api/v1/catalog/books/ — real book listing with pagination and filtering via URL params
-// Auth: public (listing); requires JWT token for Borrow action (handled on detail page)
-
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"

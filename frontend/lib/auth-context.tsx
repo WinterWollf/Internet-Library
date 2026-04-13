@@ -11,8 +11,6 @@ import type { ReactNode } from "react";
 import { setTokens, clearTokens } from "./auth";
 import type { LoginResponse, RegisterPayload, User } from "./types";
 
-// ── Context shape ─────────────────────────────────────────────────────────────
-
 interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
@@ -26,8 +24,6 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
@@ -69,8 +65,6 @@ async function throwOnError(res: Response) {
     throw err;
   }
 }
-
-// ── Provider ──────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -183,8 +177,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   );
 }
-
-// ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
