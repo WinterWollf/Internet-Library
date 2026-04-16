@@ -107,4 +107,3 @@ class Reservation(models.Model):
 
     def __str__(self):
         return f"{self.reader} reserved {self.book} ({self.status})"
-

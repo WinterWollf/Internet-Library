@@ -158,14 +158,16 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 
-# Email — SMTP with TLS. Override EMAIL_BACKEND in development (e.g. console backend).
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# Email — all settings read from environment so dev (MailHog) and prod (real SMTP) differ only in .env.
+EMAIL_BACKEND = config(
+    "EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
+)
 EMAIL_HOST = config("EMAIL_HOST", default="localhost")
-EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
+EMAIL_PORT = config("EMAIL_PORT", default=1025, cast=int)
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=False, cast=bool)
 EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
-EMAIL_USE_TLS = True
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@library.local")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="library@localhost")
 
 # Allauth (minimal — auth is handled by simplejwt, allauth used for middleware/OTP support)
 ACCOUNT_EMAIL_VERIFICATION = "none"

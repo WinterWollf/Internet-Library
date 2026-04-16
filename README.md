@@ -66,10 +66,55 @@ docker compose logs -f celery
 | Django Admin | http://localhost:8000/django-admin/ | Django admin panel |
 | API Docs (Swagger) | http://localhost:8000/api/schema/swagger-ui/ | Interactive API documentation |
 | API Docs (ReDoc) | http://localhost:8000/api/schema/redoc/ | Alternative API documentation |
+| **MailHog** | **http://localhost:8025** | **Inspect all outgoing emails** |
 
 ---
 
-## 5. Creating an admin account
+## 5. Email service (MailHog)
+
+MailHog is a local SMTP trap included in `docker-compose.yml`. It captures every email the backend sends so you can inspect them in the browser — nothing is delivered for real.
+
+**It starts automatically with `docker compose up` — no extra steps needed.**
+
+Open **http://localhost:8025** to view the inbox.
+
+Emails sent by the application:
+
+| Trigger | Template |
+|---|---|
+| Loan due in ≤ 3 days (Celery, daily 09:00) | `reminder` |
+| Loan overdue (Celery, daily 10:00) | `overdue` |
+| Reserved book became available | `reservation_ready` |
+| Account blocked by admin | `account_blocked` |
+
+### Required `.env` values
+
+Make sure your `.env` contains (already set in `.env.example`):
+
+```env
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=mailhog
+EMAIL_PORT=1025
+EMAIL_USE_TLS=False
+DEFAULT_FROM_EMAIL=library@example.com
+```
+
+> `EMAIL_HOST=mailhog` resolves because both services share the same Docker Compose network. Do **not** change it to `localhost` — that will not resolve inside the container.
+
+### Triggering a test email manually
+
+```bash
+docker compose exec backend python manage.py shell -c "
+from apps.notifications.tasks import send_notification_email
+send_notification_email.delay(1, 'reminder', {'book_title': 'Test Book', 'book_author': 'Author', 'days': 2, 'due_date': '2026-04-18'})
+"
+```
+
+Then open http://localhost:8025 to see the captured message.
+
+---
+
+## 6. Creating an admin account
 
 ### Method A — via Django management command (recommended)
 
@@ -98,7 +143,7 @@ print(f'Done — {u.email} is now an admin')
 
 ---
 
-## 6. Running tests
+## 7. Running tests
 
 ```bash
 # Backend tests
@@ -119,7 +164,7 @@ docker compose exec frontend npm run lint
 
 ---
 
-## 7. Useful development commands
+## 8. Useful development commands
 
 ```bash
 # Run Django migrations after model changes
@@ -147,7 +192,7 @@ docker compose exec postgres psql -U postgres -d library_db
 
 ---
 
-## 8. Environment variables
+## 9. Environment variables
 
 Key variables in `backend/.env`:
 
@@ -162,7 +207,7 @@ Key variables in `backend/.env`:
 
 ---
 
-## 9. Troubleshooting
+## 10. Troubleshooting
 
 **Docker containers not starting:**
 

@@ -42,6 +42,7 @@ class LoginSerializer(serializers.Serializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     """Read/write serializer for the authenticated user's own profile. email, role, and mfa_enabled are read-only."""
+
     avatar_url = serializers.SerializerMethodField()
 
     class Meta:

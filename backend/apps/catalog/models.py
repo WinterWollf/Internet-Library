@@ -62,6 +62,7 @@ class BookCopy(models.Model):
 
 class Wishlist(models.Model):
     """Records a reader's interest in a book. One entry per reader–book pair (unique_together)."""
+
     reader = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -82,6 +83,7 @@ class Wishlist(models.Model):
 
 class Review(models.Model):
     """A reader's rating and text review for a Book. Requires admin approval before being visible."""
+
     book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="reviews")
     reader = models.ForeignKey(
         settings.AUTH_USER_MODEL,
