@@ -33,7 +33,7 @@ jobs:
 
       # ── Build and push backend ──────────────────────────────────────────
       - name: Build and push backend image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./backend
           push: true
@@ -45,7 +45,7 @@ jobs:
 
       # ── Build and push frontend ─────────────────────────────────────────
       - name: Build and push frontend image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./frontend
           push: true
